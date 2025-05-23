@@ -104,9 +104,10 @@ class GameScene extends Phaser.Scene {
     }
 
     init(data) {
-        currentDifficultyKey = data.difficulty || 'normal';
-        currentOpponentIndex = data.opponentIndex || 0;
-
+         // ★★★修正ポイント★★★
+        // data が存在し、かつプロパティが存在するか確認
+        currentDifficultyKey = (data && data.difficulty !== undefined) ? data.difficulty : 'normal';
+        currentOpponentIndex = (data && data.opponentIndex !== undefined) ? data.opponentIndex : 0;
         // A-5. 「つよい」難易度でのCPU強化
         const diffSetting = DIFFICULTIES[currentDifficultyKey];
         if (currentDifficultyKey === 'hard') {
@@ -189,8 +190,16 @@ class GameScene extends Phaser.Scene {
                 break;
 
             case 'waiting':
-                this.playerSprite.setVisible(true);
-                this.cpuSprite.setVisible(true);
+                  if (this.playerSprite) { // nullチェック
+                    this.playerSprite.setVisible(true);
+                    this.playerSprite.setPosition(PLAYER_INITIAL_X_RIGHT, GAME_HEIGHT * 0.75);
+                    this.playerSprite.setFillStyle(0x00ff00);
+                }
+                if (this.cpuSprite) { // nullチェック
+                    this.cpuSprite.setVisible(true);
+                    this.cpuSprite.setPosition(CPU_INITIAL_X_LEFT, GAME_HEIGHT * 0.75);
+                    this.cpuSprite.setFillStyle(0xff0000);
+                }
                 // A-3. 日本語化
                 this.infoText.setText(`相手: ${DIFFICULTIES[currentDifficultyKey].cpuNames[currentOpponentIndex]} (${currentOpponentIndex + 1}/${MAX_OPPONENTS})\n画面をタップして開始`);
                 this.resultText.setText('');
@@ -295,19 +304,26 @@ class GameScene extends Phaser.Scene {
             if (this.cpuReactTime !== undefined) { // CPUが同時か先に反応した場合
                 this.showResult();
             } // そうでなければCPUの反応を待つ (cpuTimerが発火してhandleCpuInputが呼ばれる)
-        } else if (this.gameState === 'result') {
-            if (this.winLastRound) {
+       } else if (this.gameState === 'result') {
+            if (this.winLastRound) { // 直前のラウンドで勝利した場合
                 if (currentOpponentIndex < MAX_OPPONENTS - 1) {
                     currentOpponentIndex++;
+                    console.log(`Restarting for Opponent Index: ${currentOpponentIndex}, Difficulty: ${currentDifficultyKey}`); // ログ追加
+                    // ★★★修正ポイント★★★
+                    // restart に渡すデータはオブジェクトであることを確認
                     this.scene.restart({ difficulty: currentDifficultyKey, opponentIndex: currentOpponentIndex });
                 } else {
-                    this.showGameClearScreen();
+                    // 3人抜き達成
+                    this.resultText.setText(`${DIFFICULTIES[currentDifficultyKey].name} 制覇！\nタップしてタイトルへ`); // メッセージ更新
+                    // この後、タップでタイトルに戻る処理は winLastRound = false のルートを通るようにするか、
+                    // 別途フラグ管理が必要。ここでは単純化のため、次のタップでタイトルへ。
+                    this.winLastRound = false; // クリアしたので、次のタップはタイトルバック用
+                    // this.scene.start('TitleScene'); // 即座にタイトルに戻す場合
                 }
-            } else {
+            } else { // 敗北した場合、または3人抜き達成後のタップ
                 this.scene.start('TitleScene');
             }
-        }
-    }
+        }}
 
     handleCpuInput() {
         if (this.gameState !== 'signal') return; // signal状態以外ではCPUの反応は処理しない
