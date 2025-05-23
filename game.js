@@ -176,17 +176,21 @@ class GameScene extends Phaser.Scene {
         }
 
         switch (this.gameState) {
-            case 'pre_battle': // B. 対戦前カットイン状態
-                this.playerReactTime = undefined; // リセット
+                case 'pre_battle':
+                this.playerReactTime = undefined;
                 this.cpuReactTime = undefined;
                 this.signalTime = undefined;
-                this.playerSprite.setVisible(false); // バトル前はキャラクター非表示
-                this.cpuSprite.setVisible(false);
-                this.signalObject.setVisible(false);
-                this.infoText.setText('');
-                this.resultText.setText('');
-                this.showPreBattleCutscene();
-                this.playerInputEnabled = true; // タップで進めるため
+                if (this.playerSprite) this.playerSprite.setVisible(false); // nullチェック追加
+                if (this.cpuSprite) this.cpuSprite.setVisible(false);    // nullチェック追加
+                if (this.signalObject) this.signalObject.setVisible(false); // nullチェック追加
+                if (this.infoText) this.infoText.setText('');        // nullチェック追加
+                if (this.resultText) this.resultText.setText('');      // nullチェック追加
+
+                // ★★★修正ポイント★★★
+                // this.showPreBattleCutscene(); // 直接呼び出すのをやめる
+                this.time.delayedCall(10, this.showPreBattleCutscene, [], this); // 10ms後に呼び出す
+
+                this.playerInputEnabled = true;
                 break;
 
             case 'waiting':
@@ -249,11 +253,16 @@ class GameScene extends Phaser.Scene {
     }
 
     showPreBattleCutscene() { // B. カットシーン表示
-        if (this.cutsceneObjects) this.cutsceneObjects.destroy(); // 古いのがあれば破棄
+          // ★★★修正ポイント★★★
+        if (this.cutsceneObjects) {
+            this.cutsceneObjects.clear(true, true); // 子を破棄し、グループも空にする
+            this.cutsceneObjects.destroy();         // グループ自体を破棄
+            this.cutsceneObjects = null;            // 参照をクリア
+        }
 
         const gameWidth = this.cameras.main.width;
         const gameHeight = this.cameras.main.height;
-        this.cutsceneObjects = this.add.group();
+        this.cutsceneObjects = this.add.group(); // 新しくグループを作成
 
         const bandHeight = gameHeight * 0.2;
         const band = this.add.rectangle(gameWidth / 2, gameHeight / 2, gameWidth * 0.9, bandHeight, 0x000000, 0.8);
