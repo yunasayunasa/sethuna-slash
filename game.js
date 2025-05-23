@@ -151,9 +151,12 @@ class GameScene extends Phaser.Scene {
                 this.resultText.setText('');
                 if(this.signalObject) this.signalObject.setVisible(false); // nullチェック追加
 
-                // 位置と色をリセット（キャラクターが入れ替わっている可能性を考慮）
-                this.playerSprite.setPosition(this.playerIsLeft ? PLAYER_INITIAL_X_LEFT : PLAYER_INITIAL_X_RIGHT, this.playerSprite.y);
-                this.cpuSprite.setPosition(this.playerIsLeft ? PLAYER_INITIAL_X_RIGHT : PLAYER_INITIAL_X_LEFT, this.cpuSprite.y);
+                  // ★★★ プレイヤーの開始位置を右側に固定 ★★★
+                this.playerIsLeft = false; // プレイヤーは右から開始
+                this.playerSprite.setPosition(PLAYER_INITIAL_X_RIGHT, this.playerSprite.y);
+                this.cpuSprite.setPosition(CPU_INITIAL_X_LEFT, this.cpuSprite.y);
+
+                // 色をリセット
                 this.playerSprite.setFillStyle(0x00ff00);
                 this.cpuSprite.setFillStyle(0xff0000);
 
