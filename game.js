@@ -1,6 +1,6 @@
 // --- グローバル設定 ---
-const GAME_WIDTH = 450;
-const GAME_HEIGHT = 800;
+const GAME_WIDTH = 400;
+const GAME_HEIGHT = 700;
 const PLAYER_INITIAL_X_LEFT = GAME_WIDTH * 0.25;
 const PLAYER_INITIAL_X_RIGHT = GAME_WIDTH * 0.75;
 const CPU_INITIAL_X_LEFT = GAME_WIDTH * 0.25;
@@ -11,12 +11,12 @@ const DIFFICULTIES = {
     normal: { name: 'ふつう',   minReact: 150, maxReact: 400, color: 0xffff88, cpuNames: ['練達の士', '免許皆伝', '剣豪'] },
     hard:   { name: 'つよい',   minReact: 100, maxReact: 250, color: 0xff8888, cpuNames: ['修羅', '鬼神', '剣聖'] }
 };
-let currentDifficultyKey = 'normal'; // キー名で管理
+let currentDifficultyKey = 'normal';
 let cpuMinReact = DIFFICULTIES[currentDifficultyKey].minReact;
 let cpuMaxReact = DIFFICULTIES[currentDifficultyKey].maxReact;
 
 const MAX_OPPONENTS = 3;
-let currentOpponentIndex = 0; // 0, 1, 2 (配列のインデックスとして)
+let currentOpponentIndex = 0;
 
 // --- Title Scene ---
 class TitleScene extends Phaser.Scene {
@@ -25,25 +25,13 @@ class TitleScene extends Phaser.Scene {
     }
 
     preload() {
-        // Webフォントを読み込む場合 (例: Google Fonts)
-        // this.load.script('webfont', 'https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js');
+        // console.log('[LOG] TitleScene preload: Started');
     }
 
     create() {
-        /* // Webフォント使用例
-        WebFont.load({
-            google: {
-                families: ['Press Start 2P'] // かっこいいピクセルフォントなど
-            },
-            active: () => { // フォント読み込み完了後にテキスト描画
-                this.createTextObjects();
-            }
-        });
-        if (!this.load.inflight.size) { // もしWebフォントを使わない場合は即時描画
-           this.createTextObjects();
-        }
-        */
-        this.createTextObjects(); // Webフォントを使わない場合は直接呼び出し
+        // console.log('[LOG] TitleScene create: Started');
+        this.createTextObjects();
+        // console.log('[LOG] TitleScene create: Finished');
     }
 
     createTextObjects() {
@@ -51,14 +39,12 @@ class TitleScene extends Phaser.Scene {
         const gameWidth = this.cameras.main.width;
         const gameHeight = this.cameras.main.height;
 
-        // A-1. タイトルロゴ
         this.add.text(gameWidth / 2, gameHeight * 0.15, '刹那の', {
-            fontSize: '48px', color: '#ffffff', fontStyle: 'bold', /* fontFamily: '"Press Start 2P", cursive' */
+            fontSize: '48px', color: '#ffffff', fontStyle: 'bold',
         }).setOrigin(0.5);
         this.add.text(gameWidth / 2, gameHeight * 0.25, 'MI・KI・RI', {
-            fontSize: '52px', color: '#ffff00', fontStyle: 'italic bold', /* fontFamily: '"Press Start 2P", cursive' */
+            fontSize: '52px', color: '#ffff00', fontStyle: 'italic bold',
         }).setOrigin(0.5);
-
 
         let yPos = gameHeight * 0.45;
         for (const diffKey in DIFFICULTIES) {
@@ -67,15 +53,14 @@ class TitleScene extends Phaser.Scene {
                 .setInteractive({ useHandCursor: true })
                 .on('pointerdown', () => {
                     currentDifficultyKey = diffKey;
-                    // cpuMinReact, cpuMaxReact は GameScene の init で設定
                     currentOpponentIndex = 0;
+                    // console.log(`[LOG] TitleScene: Starting GameScene with diff: ${currentDifficultyKey}, oppIdx: ${currentOpponentIndex}`);
                     this.scene.start('GameScene', { difficulty: currentDifficultyKey, opponentIndex: currentOpponentIndex });
                 });
             this.add.text(button.x, button.y, diff.name, { fontSize: '32px', color: '#000000', fontStyle: 'bold' }).setOrigin(0.5);
             yPos += 90;
         }
 
-        // A-2. スコア表示
         const scoreYStart = gameHeight * 0.78;
         this.add.text(gameWidth / 2, scoreYStart, '--- 戦績 ---', { fontSize: '24px', color: '#cccccc' }).setOrigin(0.5);
         const bestTime = localStorage.getItem('bestReactionTime') || '-';
@@ -94,181 +79,207 @@ class TitleScene extends Phaser.Scene {
 class GameScene extends Phaser.Scene {
     constructor() {
         super({ key: 'GameScene' });
-        // ... (プロパティ初期化は init で行うか、ここで undefined や null で宣言)
         this.playerSprite = null;
         this.cpuSprite = null;
         this.signalObject = null;
         this.infoText = null;
         this.resultText = null;
-        this.cutsceneObjects = null; // カットシーン用オブジェクトグループ
-    }
+        this.cutsceneObjects = null;
 
-    init(data) {
-         // ★★★修正ポイント★★★
-        // data が存在し、かつプロパティが存在するか確認
-        currentDifficultyKey = (data && data.difficulty !== undefined) ? data.difficulty : 'normal';
-        currentOpponentIndex = (data && data.opponentIndex !== undefined) ? data.opponentIndex : 0;
-        // A-5. 「つよい」難易度でのCPU強化
-        const diffSetting = DIFFICULTIES[currentDifficultyKey];
-        if (currentDifficultyKey === 'hard') {
-            const baseMin = diffSetting.minReact;
-            const baseMax = diffSetting.maxReact;
-            // 相手が進むごとに少しずつ厳しくする (例: 0ms, -15ms, -30ms のように)
-            const reductionFactor = currentOpponentIndex * 15; // 1人目=0, 2人目=15, 3人目=30
-            cpuMinReact = Math.max(80, baseMin - reductionFactor); // 最低でも80ms
-            cpuMaxReact = Math.max(150, baseMax - reductionFactor * 1.3); // 最低でも150ms (minよりmaxを大きく減らす)
-            if (cpuMinReact >= cpuMaxReact - 10) cpuMinReact = cpuMaxReact - 20; // 矛盾しないように & 最小間隔20ms
-        } else {
-            cpuMinReact = diffSetting.minReact;
-            cpuMaxReact = diffSetting.maxReact;
-        }
-        console.log(`Game Init: Diff ${currentDifficultyKey}, Opponent ${currentOpponentIndex + 1}, CPU React: ${cpuMinReact}-${cpuMaxReact}ms`);
-
-        // GameScene固有のプロパティ初期化
-        this.gameState = 'pre_battle'; // B. 最初はカットシーンから
+        this.gameState = 'pre_battle'; // Default, will be set in init
         this.signalTime = undefined;
         this.playerReactTime = undefined;
         this.cpuReactTime = undefined;
         this.playerInputEnabled = false;
         this.cpuTimer = null;
         this.signalTimer = null;
-        this.playerIsLeft = false; // プレイヤーは右から開始
+        this.playerIsLeft = false;
         this.winLastRound = false;
     }
 
+    init(data) {
+        console.log('[LOG] GameScene init: Started with data:', data);
+        try {
+            currentDifficultyKey = (data && data.difficulty !== undefined) ? data.difficulty : 'normal';
+            currentOpponentIndex = (data && data.opponentIndex !== undefined) ? data.opponentIndex : 0;
+
+            const diffSetting = DIFFICULTIES[currentDifficultyKey];
+            if (currentDifficultyKey === 'hard') {
+                const baseMin = diffSetting.minReact;
+                const baseMax = diffSetting.maxReact;
+                const reductionFactor = currentOpponentIndex * 15;
+                cpuMinReact = Math.max(80, baseMin - reductionFactor);
+                cpuMaxReact = Math.max(150, baseMax - reductionFactor * 1.3);
+                if (cpuMinReact >= cpuMaxReact - 10) cpuMinReact = cpuMaxReact - 20;
+            } else {
+                cpuMinReact = diffSetting.minReact;
+                cpuMaxReact = diffSetting.maxReact;
+            }
+            console.log(`[LOG] GameScene init: CPU React set to ${cpuMinReact}-${cpuMaxReact}ms for Opponent ${currentOpponentIndex + 1}`);
+
+            this.gameState = 'pre_battle';
+            this.signalTime = undefined;
+            this.playerReactTime = undefined;
+            this.cpuReactTime = undefined;
+            this.playerInputEnabled = false;
+            this.cpuTimer = null;
+            this.signalTimer = null;
+            this.playerIsLeft = false; // Player starts on the right
+            this.winLastRound = false;
+            console.log('[LOG] GameScene init: Finished successfully. gameState set to:', this.gameState);
+        } catch (error) {
+            console.error('[FATAL LOG] Error in GameScene init:', error);
+            if (error.stack) console.error('[FATAL LOG] Stack trace (init):', error.stack);
+        }
+    }
+
     preload() {
-        console.log('GameScene Preloading...');
+        console.log('[LOG] GameScene preload: Started');
+        // console.log('GameScene Preloading...'); // Original log
+        console.log('[LOG] GameScene preload: Finished');
     }
 
     create() {
-        console.log('GameScene Creating...');
-        this.cameras.main.setBackgroundColor('#4488AA');
-        const gameWidth = this.cameras.main.width;
-        const gameHeight = this.cameras.main.height;
+        console.log('[LOG] GameScene create: Started');
+        try {
+            // console.log('GameScene Creating...'); // Original log
+            this.cameras.main.setBackgroundColor('#4488AA');
+            const gameWidth = this.cameras.main.width;
+            const gameHeight = this.cameras.main.height;
 
-        this.playerSprite = this.add.rectangle(0,0, 60, 100, 0x00ff00).setOrigin(0.5); // 初期位置は setGameState で設定
-        this.cpuSprite = this.add.rectangle(0,0, 60, 100, 0xff0000).setOrigin(0.5);
+            console.log('[LOG] GameScene create: Creating playerSprite');
+            this.playerSprite = this.add.rectangle(0, 0, 60, 100, 0x00ff00).setOrigin(0.5);
+            console.log('[LOG] GameScene create: Creating cpuSprite');
+            this.cpuSprite = this.add.rectangle(0, 0, 60, 100, 0xff0000).setOrigin(0.5);
 
-        this.signalObject = this.add.text(gameWidth / 2, gameHeight * 0.4, '！', { fontSize: '120px', color: '#FFFF00', fontStyle: 'bold' }) // A-3. フォントサイズ調整
-            .setOrigin(0.5)
-            .setVisible(false);
+            console.log('[LOG] GameScene create: Creating signalObject');
+            this.signalObject = this.add.text(gameWidth / 2, gameHeight * 0.4, '！', { fontSize: '120px', color: '#FFFF00', fontStyle: 'bold' })
+                .setOrigin(0.5)
+                .setVisible(false);
 
-        // A-3. フォントサイズ調整
-        this.infoText = this.add.text(gameWidth / 2, gameHeight * 0.1, '', { fontSize: '32px', color: '#FFFFFF', align: 'center', lineSpacing: 8 }).setOrigin(0.5);
-        this.resultText = this.add.text(gameWidth / 2, gameHeight * 0.58, '', { fontSize: '36px', color: '#FFFFFF', align: 'center', lineSpacing: 10 }).setOrigin(0.5);
+            console.log('[LOG] GameScene create: Creating infoText');
+            this.infoText = this.add.text(gameWidth / 2, gameHeight * 0.1, '', { fontSize: '32px', color: '#FFFFFF', align: 'center', lineSpacing: 8 }).setOrigin(0.5);
+            console.log('[LOG] GameScene create: Creating resultText');
+            this.resultText = this.add.text(gameWidth / 2, gameHeight * 0.58, '', { fontSize: '36px', color: '#FFFFFF', align: 'center', lineSpacing: 10 }).setOrigin(0.5);
 
-        this.setGameState(this.gameState); // 初期ステート 'pre_battle' を設定
+            console.log('[LOG] GameScene create: About to call setGameState with state:', this.gameState);
+            this.setGameState(this.gameState);
 
-        this.input.on('pointerdown', this.handlePlayerInput, this);
+            console.log('[LOG] GameScene create: Adding input listener');
+            this.input.off('pointerdown', this.handlePlayerInput, this); // Remove old listener if any from previous scene instance (safety)
+            this.input.on('pointerdown', this.handlePlayerInput, this);
+
+            console.log('[LOG] GameScene create: Finished successfully');
+        } catch (error) {
+            console.error('[FATAL LOG] Error in GameScene create:', error);
+            if (error.stack) console.error('[FATAL LOG] Stack trace (create):', error.stack);
+        }
     }
 
     setGameState(newState) {
+        console.log(`[LOG] setGameState: Changing from ${this.gameState} to ${newState}`);
         this.gameState = newState;
         this.playerInputEnabled = false;
-        console.log("State changed to:", this.gameState);
+        // console.log("State changed to:", this.gameState); // Original log
 
         if (this.cpuTimer) { this.cpuTimer.remove(false); this.cpuTimer = null; }
         if (this.signalTimer) { this.signalTimer.remove(false); this.signalTimer = null; }
 
-        // カットシーンオブジェクトの表示制御
         if (this.cutsceneObjects) {
             this.cutsceneObjects.setVisible(this.gameState === 'pre_battle');
         }
 
         switch (this.gameState) {
-                case 'pre_battle':
-                 console.log('[LOG] Entering pre_battle state setup');
+            case 'pre_battle':
+                console.log('[LOG] setGameState pre_battle: Started setup');
                 this.playerReactTime = undefined;
                 this.cpuReactTime = undefined;
                 this.signalTime = undefined;
 
-                console.log('[LOG] Setting sprite visibility (player, cpu, signal)');
-                if (this.playerSprite) this.playerSprite.setVisible(false); else console.warn('[LOG] playerSprite is null in pre_battle');
-                if (this.cpuSprite) this.cpuSprite.setVisible(false); else console.warn('[LOG] cpuSprite is null in pre_battle');
-                if (this.signalObject) this.signalObject.setVisible(false); else console.warn('[LOG] signalObject is null in pre_battle');
+                console.log('[LOG] setGameState pre_battle: Setting sprite visibility');
+                if (this.playerSprite) this.playerSprite.setVisible(false); else console.warn('[LOG] playerSprite is null in pre_battle setup');
+                if (this.cpuSprite) this.cpuSprite.setVisible(false); else console.warn('[LOG] cpuSprite is null in pre_battle setup');
+                if (this.signalObject) this.signalObject.setVisible(false); else console.warn('[LOG] signalObject is null in pre_battle setup');
 
-                console.log('[LOG] Setting text (info, result)');
-                if (this.infoText) this.infoText.setText(''); else console.warn('[LOG] infoText is null in pre_battle');
-                if (this.resultText) this.resultText.setText(''); else console.warn('[LOG] resultText is null in pre_battle');
+                console.log('[LOG] setGameState pre_battle: Setting text');
+                if (this.infoText) this.infoText.setText(''); else console.warn('[LOG] infoText is null in pre_battle setup');
+                if (this.resultText) this.resultText.setText(''); else console.warn('[LOG] resultText is null in pre_battle setup');
 
-                console.log('[LOG] Scheduling showPreBattleCutscene');
+                console.log('[LOG] setGameState pre_battle: Scheduling showPreBattleCutscene');
                 this.time.delayedCall(10, () => {
-                    console.log('[LOG] delayedCall: Executing showPreBattleCutscene');
+                    console.log('[LOG] setGameState pre_battle (delayedCall): Executing showPreBattleCutscene');
                     this.showPreBattleCutscene();
                 }, [], this);
 
                 this.playerInputEnabled = true;
-                console.log('[LOG] Exiting pre_battle state setup');
+                console.log('[LOG] setGameState pre_battle: Finished setup');
                 break;
 
-
             case 'waiting':
-                  if (this.playerSprite) { // nullチェック
-                    this.playerSprite.setVisible(true);
-                    this.playerSprite.setPosition(PLAYER_INITIAL_X_RIGHT, GAME_HEIGHT * 0.75);
-                    this.playerSprite.setFillStyle(0x00ff00);
-                }
-                if (this.cpuSprite) { // nullチェック
-                    this.cpuSprite.setVisible(true);
-                    this.cpuSprite.setPosition(CPU_INITIAL_X_LEFT, GAME_HEIGHT * 0.75);
-                    this.cpuSprite.setFillStyle(0xff0000);
-                }
-                // A-3. 日本語化
-                this.infoText.setText(`相手: ${DIFFICULTIES[currentDifficultyKey].cpuNames[currentOpponentIndex]} (${currentOpponentIndex + 1}/${MAX_OPPONENTS})\n画面をタップして開始`);
-                this.resultText.setText('');
-                this.signalObject.setVisible(false);
+                console.log('[LOG] setGameState waiting: Started setup');
+                if(this.playerSprite) this.playerSprite.setVisible(true);
+                if(this.cpuSprite) this.cpuSprite.setVisible(true);
+                if(this.infoText) this.infoText.setText(`相手: ${DIFFICULTIES[currentDifficultyKey].cpuNames[currentOpponentIndex]} (${currentOpponentIndex + 1}/${MAX_OPPONENTS})\n画面をタップして開始`);
+                if(this.resultText) this.resultText.setText('');
+                if(this.signalObject) this.signalObject.setVisible(false);
 
-                this.playerIsLeft = false; // プレイヤーは右から開始
-                this.playerSprite.setPosition(PLAYER_INITIAL_X_RIGHT, GAME_HEIGHT * 0.75);
-                this.cpuSprite.setPosition(CPU_INITIAL_X_LEFT, GAME_HEIGHT * 0.75);
-                this.playerSprite.setFillStyle(0x00ff00);
-                this.cpuSprite.setFillStyle(0xff0000);
+                this.playerIsLeft = false;
+                if(this.playerSprite) this.playerSprite.setPosition(PLAYER_INITIAL_X_RIGHT, GAME_HEIGHT * 0.75).setFillStyle(0x00ff00);
+                if(this.cpuSprite) this.cpuSprite.setPosition(CPU_INITIAL_X_LEFT, GAME_HEIGHT * 0.75).setFillStyle(0xff0000);
 
                 this.playerReactTime = undefined;
                 this.cpuReactTime = undefined;
                 this.signalTime = undefined;
                 this.playerInputEnabled = true;
+                console.log('[LOG] setGameState waiting: Finished setup');
                 break;
 
             case 'ready':
-                this.infoText.setText('構え！'); // A-3. 日本語化
-                this.resultText.setText('');
-                this.signalObject.setVisible(false);
+                console.log('[LOG] setGameState ready: Started setup');
+                if(this.infoText) this.infoText.setText('構え！');
+                if(this.resultText) this.resultText.setText('');
+                if(this.signalObject) this.signalObject.setVisible(false);
                 this.playerInputEnabled = true;
 
-                const waitTime = Phaser.Math.Between(1500, 3500); // 少し短縮＆固定
-                console.log(`Signal in ${waitTime} ms`);
+                const waitTime = Phaser.Math.Between(1500, 3500);
+                console.log(`[LOG] setGameState ready: Signal in ${waitTime} ms`);
                 this.signalTimer = this.time.delayedCall(waitTime, this.showSignal, [], this);
+                console.log('[LOG] setGameState ready: Finished setup');
                 break;
 
             case 'signal':
-                this.infoText.setText('斬！'); // A-3. 日本語化
-                this.signalObject.setVisible(true);
+                console.log('[LOG] setGameState signal: Started setup');
+                if(this.infoText) this.infoText.setText('斬！');
+                if(this.signalObject) this.signalObject.setVisible(true);
                 this.signalTime = this.time.now;
                 this.playerInputEnabled = true;
 
                 const cpuReactionDelay = Phaser.Math.Between(cpuMinReact, cpuMaxReact);
-                console.log(`CPU will react in ${cpuReactionDelay} ms (Min: ${cpuMinReact}, Max: ${cpuMaxReact})`);
+                console.log(`[LOG] setGameState signal: CPU will react in ${cpuReactionDelay} ms (Min: ${cpuMinReact}, Max: ${cpuMaxReact})`);
                 this.cpuTimer = this.time.delayedCall(cpuReactionDelay, this.handleCpuInput, [], this);
+                console.log('[LOG] setGameState signal: Finished setup');
                 break;
 
             case 'result':
+                console.log('[LOG] setGameState result: Started setup');
                 this.playerInputEnabled = false;
-                 // A-3. 日本語化 (メッセージは performResultLogic で設定)
-                this.signalObject.setVisible(false);
-                this.time.delayedCall(600, () => { this.playerInputEnabled = true; }); // 少し長めに
+                if(this.signalObject) this.signalObject.setVisible(false);
+                this.time.delayedCall(600, () => { this.playerInputEnabled = true; });
+                console.log('[LOG] setGameState result: Finished setup');
                 break;
+            default:
+                console.warn(`[LOG] setGameState: Unknown state ${newState}`);
         }
     }
 
-     showPreBattleCutscene() {
+    showPreBattleCutscene() {
         console.log('[LOG] showPreBattleCutscene: Started');
-        try { // エラーキャッチのために try...catch を追加
+        try {
             console.log('[LOG] showPreBattleCutscene: Checking old cutsceneObjects');
             if (this.cutsceneObjects) {
                 console.log('[LOG] showPreBattleCutscene: Destroying old cutsceneObjects');
-                this.cutsceneObjects.clear(true, true);
-                this.cutsceneObjects.destroy();
+                this.cutsceneObjects.clear(true, true); // Destroy children and remove them from the group
+                this.cutsceneObjects.destroy();         // Destroy the group itself
                 this.cutsceneObjects = null;
                 console.log('[LOG] showPreBattleCutscene: Old cutsceneObjects destroyed');
             }
@@ -316,14 +327,9 @@ class GameScene extends Phaser.Scene {
 
         } catch (error) {
             console.error('[FATAL LOG] Error in showPreBattleCutscene:', error);
-            // エラーが発生した場合、より詳細な情報を表示しようと試みる
-            if (error.stack) {
-                console.error('[FATAL LOG] Stack trace:', error.stack);
-            }
-            // ここでゲームを安全な状態にするか、エラー画面に遷移するなどの処理も考えられる
+            if (error.stack) console.error('[FATAL LOG] Stack trace (showPreBattleCutscene):', error.stack);
         }
     }
-
 
     showSignal() {
         if (this.gameState === 'ready') {
@@ -332,111 +338,122 @@ class GameScene extends Phaser.Scene {
     }
 
     handlePlayerInput() {
+        // console.log(`[LOG] handlePlayerInput: Called in state ${this.gameState}, inputEnabled: ${this.playerInputEnabled}`);
         if (!this.playerInputEnabled) return;
         const currentTime = this.time.now;
 
-        if (this.gameState === 'pre_battle') { // B. カットシーン中のタップ
+        if (this.gameState === 'pre_battle') {
+            console.log('[LOG] handlePlayerInput: pre_battle tap');
             if (this.cutsceneObjects) this.cutsceneObjects.setVisible(false);
             this.setGameState('waiting');
         } else if (this.gameState === 'waiting') {
+            console.log('[LOG] handlePlayerInput: waiting tap');
             this.setGameState('ready');
-        } else if (this.gameState === 'ready') { // フライング
+        } else if (this.gameState === 'ready') {
+            console.log('[LOG] handlePlayerInput: ready tap (False Start!)');
             this.playerReactTime = -1;
             this.cpuReactTime = 99999;
             if (this.signalTimer) { this.signalTimer.remove(); this.signalTimer = null; }
-            this.playerSprite.setFillStyle(0xaaaaaa);
-            this.performResultLogic(); // 演出なしで直接結果ロジックへ
+            if(this.playerSprite) this.playerSprite.setFillStyle(0xaaaaaa);
+            this.performResultLogic();
         } else if (this.gameState === 'signal') {
+            console.log('[LOG] handlePlayerInput: signal tap');
             this.playerReactTime = currentTime - this.signalTime;
             this.playerInputEnabled = false;
-            if (this.cpuReactTime !== undefined) { // CPUが同時か先に反応した場合
+            if (this.cpuReactTime !== undefined) {
                 this.showResult();
-            } // そうでなければCPUの反応を待つ (cpuTimerが発火してhandleCpuInputが呼ばれる)
-       } else if (this.gameState === 'result') {
-            if (this.winLastRound) { // 直前のラウンドで勝利した場合
+            }
+        } else if (this.gameState === 'result') {
+            console.log('[LOG] handlePlayerInput: result tap');
+            if (this.winLastRound) {
                 if (currentOpponentIndex < MAX_OPPONENTS - 1) {
                     currentOpponentIndex++;
-                    console.log(`Restarting for Opponent Index: ${currentOpponentIndex}, Difficulty: ${currentDifficultyKey}`); // ログ追加
-                    // ★★★修正ポイント★★★
-                    // restart に渡すデータはオブジェクトであることを確認
+                    console.log(`[LOG] handlePlayerInput (result): Restarting for Opponent Index: ${currentOpponentIndex}, Difficulty: ${currentDifficultyKey}`);
                     this.scene.restart({ difficulty: currentDifficultyKey, opponentIndex: currentOpponentIndex });
                 } else {
-                    // 3人抜き達成
-                    this.resultText.setText(`${DIFFICULTIES[currentDifficultyKey].name} 制覇！\nタップしてタイトルへ`); // メッセージ更新
-                    // この後、タップでタイトルに戻る処理は winLastRound = false のルートを通るようにするか、
-                    // 別途フラグ管理が必要。ここでは単純化のため、次のタップでタイトルへ。
-                    this.winLastRound = false; // クリアしたので、次のタップはタイトルバック用
-                    // this.scene.start('TitleScene'); // 即座にタイトルに戻す場合
+                    console.log('[LOG] handlePlayerInput (result): All opponents cleared, going to TitleScene');
+                    if(this.resultText) this.resultText.setText(`${DIFFICULTIES[currentDifficultyKey].name} 制覇！\nタップしてタイトルへ`);
+                    this.winLastRound = false; // So next tap goes to title
                 }
-            } else { // 敗北した場合、または3人抜き達成後のタップ
+            } else {
+                console.log('[LOG] handlePlayerInput (result): Lost or draw, going to TitleScene');
                 this.scene.start('TitleScene');
             }
-        }}
+        }
+    }
 
     handleCpuInput() {
-        if (this.gameState !== 'signal') return; // signal状態以外ではCPUの反応は処理しない
-        if (this.signalTime === undefined) return;
-
+        // console.log(`[LOG] handleCpuInput: Called in state ${this.gameState}`);
+        if (this.gameState !== 'signal') return;
+        if (this.signalTime === undefined) {
+            console.warn('[LOG] handleCpuInput: signalTime is undefined');
+            return;
+        }
         this.cpuReactTime = this.time.now - this.signalTime;
+        console.log(`[LOG] handleCpuInput: CPU Reaction: ${this.cpuReactTime.toFixed(2)} ms`);
 
-        if (this.playerReactTime === undefined) { // プレイヤーがまだ反応していない
+        if (this.playerReactTime === undefined) {
             this.playerReactTime = 9999;
             this.playerInputEnabled = false;
+            console.log('[LOG] handleCpuInput: Player did not react in time');
         }
-        this.showResult(); // プレイヤーとCPU両方の反応が出揃った(またはタイムアウト)
+        this.showResult();
     }
 
     showResult() {
-        // gameStateが'result'に遷移する前に演出を行うため、ここでのgameStateチェックは慎重に
-        // ただし、フライングの場合は直接 performResultLogic を呼ぶので、この関数は通らない
+        console.log(`[LOG] showResult: Called in state ${this.gameState}`);
         if (this.gameState !== 'signal') {
-            console.warn("showResult called when not in 'signal' state. State:", this.gameState);
-            // フライング以外でここに来る場合は問題の可能性
-            if (this.playerReactTime !== -1) return;
+            // This can happen if player false starts, performResultLogic is called directly.
+            // If it's not a false start, then it's an issue.
+            if (this.playerReactTime !== -1) { // Not a false start
+                 console.warn(`[LOG] showResult: Called in unexpected state ${this.gameState} and not a false start. Bailing.`);
+                 return;
+            }
         }
 
         const flash = this.add.rectangle(this.cameras.main.width / 2, this.cameras.main.height / 2, this.cameras.main.width, this.cameras.main.height, 0xffffff, 0.7)
             .setDepth(100);
-        this.time.delayedCall(80, () => { flash.destroy(); });
+        this.time.delayedCall(80, () => { if(flash) flash.destroy(); });
 
         this.time.delayedCall(90, () => {
+            console.log('[LOG] showResult (delayedCall): Performing position swap and result logic');
             this.playerIsLeft = !this.playerIsLeft;
-            this.playerSprite.setX(this.playerIsLeft ? PLAYER_INITIAL_X_LEFT : PLAYER_INITIAL_X_RIGHT);
-            this.cpuSprite.setX(this.playerIsLeft ? PLAYER_INITIAL_X_RIGHT : CPU_INITIAL_X_LEFT);
+            if(this.playerSprite) this.playerSprite.setX(this.playerIsLeft ? PLAYER_INITIAL_X_LEFT : PLAYER_INITIAL_X_RIGHT);
+            if(this.cpuSprite) this.cpuSprite.setX(this.playerIsLeft ? PLAYER_INITIAL_X_RIGHT : CPU_INITIAL_X_LEFT);
             this.performResultLogic();
         });
     }
 
     performResultLogic() {
-        this.setGameState('result'); // まず結果状態に
+        console.log('[LOG] performResultLogic: Started');
+        this.setGameState('result'); // Set state to 'result' first
 
         let message = '';
         const pReact = this.playerReactTime === undefined ? Infinity : this.playerReactTime;
         const cReact = this.cpuReactTime === undefined ? Infinity : this.cpuReactTime;
         this.winLastRound = false;
 
-        console.log(`Result Logic - Player: ${pReact.toFixed(0)}, CPU: ${cReact.toFixed(0)}`);
+        console.log(`[LOG] performResultLogic: Player React: ${pReact.toFixed(0)}, CPU React: ${cReact.toFixed(0)}`);
 
-        if (pReact === -1) { // フライング
-            message = `お手つき！\nあなたの負け`; // A-3. 日本語化
-            this.playerSprite.setFillStyle(0xaaaaaa);
-        } else if (pReact === 9999 && cReact < 9999) { // プレイヤー時間切れ
+        if (pReact === -1) {
+            message = `お手つき！\nあなたの負け`;
+            if(this.playerSprite) this.playerSprite.setFillStyle(0xaaaaaa);
+        } else if (pReact === 9999 && cReact < 9999) {
             message = `遅い！\nあなたの負け\n(相手: ${cReact.toFixed(0)} ms)`;
-            this.playerSprite.setFillStyle(0xaaaaaa);
-        } else if (pReact < cReact) { // プレイヤー勝利
+            if(this.playerSprite) this.playerSprite.setFillStyle(0xaaaaaa);
+        } else if (pReact < cReact) {
             message = `あなたの勝ち！\n\nあなた: ${pReact.toFixed(0)} ms\n相手: ${cReact.toFixed(0)} ms`;
-            this.cpuSprite.setFillStyle(0xaaaaaa);
+            if(this.cpuSprite) this.cpuSprite.setFillStyle(0xaaaaaa);
             this.winLastRound = true;
             this.updateBestReaction(pReact);
-        } else if (pReact > cReact) { // CPU勝利
+        } else if (pReact > cReact) {
             message = `あなたの負け\n\nあなた: ${pReact.toFixed(0)} ms\n相手: ${cReact.toFixed(0)} ms`;
-            this.playerSprite.setFillStyle(0xaaaaaa);
-        } else if (pReact === cReact && pReact !== 9999 && pReact !== -1 && pReact !== Infinity) { // 引き分け
+            if(this.playerSprite) this.playerSprite.setFillStyle(0xaaaaaa);
+        } else if (pReact === cReact && pReact !== 9999 && pReact !== -1 && pReact !== Infinity) {
             message = `引き分け！\n\n両者: ${pReact.toFixed(0)} ms`;
-            // 引き分けは負け扱いとするか？今回は負け（タイトルへ）でwinLastRoundはfalseのまま
         } else {
             message = `予期せぬエラー\nもう一度試してください`;
-            this.playerSprite.setFillStyle(0xaaaaaa);
+            if(this.playerSprite) this.playerSprite.setFillStyle(0xaaaaaa);
         }
 
         if (this.winLastRound) {
@@ -449,13 +466,8 @@ class GameScene extends Phaser.Scene {
         } else {
              message += `\n\nタップしてタイトルへ`;
         }
-        this.resultText.setText(message);
-    }
-
-    showGameClearScreen() { // 3人抜き達成時 (performResultLogic から呼ばれる)
-        console.log("All opponents defeated for difficulty:", currentDifficultyKey);
-        // この関数は実質的に performResultLogic の結果表示分岐に含まれるため、単独では不要かも
-        // タイトルへ戻る処理は handlePlayerInput の 'result' state で行う
+        if(this.resultText) this.resultText.setText(message);
+        console.log('[LOG] performResultLogic: Finished');
     }
 
     updateBestReaction(reactionTime) {
@@ -463,6 +475,7 @@ class GameScene extends Phaser.Scene {
         const bestTime = parseFloat(localStorage.getItem('bestReactionTime')) || Infinity;
         if (reactionTime < bestTime) {
             localStorage.setItem('bestReactionTime', reactionTime.toFixed(0));
+            console.log('[LOG] updateBestReaction: New best time saved:', reactionTime.toFixed(0));
         }
     }
 
@@ -471,6 +484,7 @@ class GameScene extends Phaser.Scene {
         let clears = parseInt(localStorage.getItem(key)) || 0;
         clears++;
         localStorage.setItem(key, clears.toString());
+        console.log(`[LOG] updateClearCount: Difficulty ${difficultyKey} clears updated to ${clears}`);
     }
 }
 
@@ -487,4 +501,7 @@ const config = {
     scene: [TitleScene, GameScene]
 };
 
+// --- Phaserゲームの初期化 ---
+console.log('[LOG] Initializing Phaser Game');
 const game = new Phaser.Game(config);
+console.log('[LOG] Phaser Game Initialized');
