@@ -177,21 +177,30 @@ class GameScene extends Phaser.Scene {
 
         switch (this.gameState) {
                 case 'pre_battle':
+                 console.log('[LOG] Entering pre_battle state setup');
                 this.playerReactTime = undefined;
                 this.cpuReactTime = undefined;
                 this.signalTime = undefined;
-                if (this.playerSprite) this.playerSprite.setVisible(false); // nullチェック追加
-                if (this.cpuSprite) this.cpuSprite.setVisible(false);    // nullチェック追加
-                if (this.signalObject) this.signalObject.setVisible(false); // nullチェック追加
-                if (this.infoText) this.infoText.setText('');        // nullチェック追加
-                if (this.resultText) this.resultText.setText('');      // nullチェック追加
 
-                // ★★★修正ポイント★★★
-                // this.showPreBattleCutscene(); // 直接呼び出すのをやめる
-                this.time.delayedCall(10, this.showPreBattleCutscene, [], this); // 10ms後に呼び出す
+                console.log('[LOG] Setting sprite visibility (player, cpu, signal)');
+                if (this.playerSprite) this.playerSprite.setVisible(false); else console.warn('[LOG] playerSprite is null in pre_battle');
+                if (this.cpuSprite) this.cpuSprite.setVisible(false); else console.warn('[LOG] cpuSprite is null in pre_battle');
+                if (this.signalObject) this.signalObject.setVisible(false); else console.warn('[LOG] signalObject is null in pre_battle');
+
+                console.log('[LOG] Setting text (info, result)');
+                if (this.infoText) this.infoText.setText(''); else console.warn('[LOG] infoText is null in pre_battle');
+                if (this.resultText) this.resultText.setText(''); else console.warn('[LOG] resultText is null in pre_battle');
+
+                console.log('[LOG] Scheduling showPreBattleCutscene');
+                this.time.delayedCall(10, () => {
+                    console.log('[LOG] delayedCall: Executing showPreBattleCutscene');
+                    this.showPreBattleCutscene();
+                }, [], this);
 
                 this.playerInputEnabled = true;
+                console.log('[LOG] Exiting pre_battle state setup');
                 break;
+
 
             case 'waiting':
                   if (this.playerSprite) { // nullチェック
@@ -252,37 +261,67 @@ class GameScene extends Phaser.Scene {
         }
     }
 
-    showPreBattleCutscene() { // B. カットシーン表示
-          // ★★★修正ポイント★★★
-        if (this.cutsceneObjects) {
-            this.cutsceneObjects.clear(true, true); // 子を破棄し、グループも空にする
-            this.cutsceneObjects.destroy();         // グループ自体を破棄
-            this.cutsceneObjects = null;            // 参照をクリア
+     showPreBattleCutscene() {
+        console.log('[LOG] showPreBattleCutscene: Started');
+        try { // エラーキャッチのために try...catch を追加
+            console.log('[LOG] showPreBattleCutscene: Checking old cutsceneObjects');
+            if (this.cutsceneObjects) {
+                console.log('[LOG] showPreBattleCutscene: Destroying old cutsceneObjects');
+                this.cutsceneObjects.clear(true, true);
+                this.cutsceneObjects.destroy();
+                this.cutsceneObjects = null;
+                console.log('[LOG] showPreBattleCutscene: Old cutsceneObjects destroyed');
+            }
+
+            const gameWidth = this.cameras.main.width;
+            const gameHeight = this.cameras.main.height;
+            console.log(`[LOG] showPreBattleCutscene: gameWidth=${gameWidth}, gameHeight=${gameHeight}`);
+
+            console.log('[LOG] showPreBattleCutscene: Creating new group for cutsceneObjects');
+            this.cutsceneObjects = this.add.group();
+            console.log('[LOG] showPreBattleCutscene: New group created');
+
+            const bandHeight = gameHeight * 0.2;
+            console.log('[LOG] showPreBattleCutscene: Adding band rectangle');
+            const band = this.add.rectangle(gameWidth / 2, gameHeight / 2, gameWidth * 0.9, bandHeight, 0x000000, 0.8);
+            console.log('[LOG] showPreBattleCutscene: Band rectangle added');
+            console.log('[LOG] showPreBattleCutscene: Setting band strokeStyle');
+            band.setStrokeStyle(2, 0xffffff);
+            console.log('[LOG] showPreBattleCutscene: Adding band to group');
+            this.cutsceneObjects.add(band);
+
+            const playerName = "あなた";
+            const cpuName = DIFFICULTIES[currentDifficultyKey].cpuNames[currentOpponentIndex];
+            console.log(`[LOG] showPreBattleCutscene: playerName=${playerName}, cpuName=${cpuName}`);
+
+            console.log('[LOG] showPreBattleCutscene: Adding vsText');
+            const vsText = this.add.text(gameWidth/2, gameHeight/2, `${playerName}\nVS\n${cpuName}`, {
+                fontSize: '30px', color: '#ffffff', align: 'center', fontStyle: 'bold', lineSpacing: 8
+            }).setOrigin(0.5);
+            console.log('[LOG] showPreBattleCutscene: vsText added');
+            console.log('[LOG] showPreBattleCutscene: Adding vsText to group');
+            this.cutsceneObjects.add(vsText);
+
+            console.log('[LOG] showPreBattleCutscene: Adding tapToStartText');
+            const tapToStartText = this.add.text(gameWidth/2, gameHeight/2 + bandHeight/2 + 30, '画面をタップ', {
+                fontSize: '22px', color: '#cccccc', align: 'center'
+            }).setOrigin(0.5);
+            console.log('[LOG] showPreBattleCutscene: tapToStartText added');
+            console.log('[LOG] showPreBattleCutscene: Adding tapToStartText to group');
+            this.cutsceneObjects.add(tapToStartText);
+
+            console.log('[LOG] showPreBattleCutscene: Setting cutsceneObjects visible');
+            this.cutsceneObjects.setVisible(true);
+            console.log('[LOG] showPreBattleCutscene: Finished successfully');
+
+        } catch (error) {
+            console.error('[FATAL LOG] Error in showPreBattleCutscene:', error);
+            // エラーが発生した場合、より詳細な情報を表示しようと試みる
+            if (error.stack) {
+                console.error('[FATAL LOG] Stack trace:', error.stack);
+            }
+            // ここでゲームを安全な状態にするか、エラー画面に遷移するなどの処理も考えられる
         }
-
-        const gameWidth = this.cameras.main.width;
-        const gameHeight = this.cameras.main.height;
-        this.cutsceneObjects = this.add.group(); // 新しくグループを作成
-
-        const bandHeight = gameHeight * 0.2;
-        const band = this.add.rectangle(gameWidth / 2, gameHeight / 2, gameWidth * 0.9, bandHeight, 0x000000, 0.8);
-        band.setStrokeStyle(2, 0xffffff);
-        this.cutsceneObjects.add(band);
-
-        const playerName = "あなた"; // 将来的に入力できるようにしても良い
-        const cpuName = DIFFICULTIES[currentDifficultyKey].cpuNames[currentOpponentIndex];
-
-        const vsText = this.add.text(gameWidth/2, gameHeight/2, `${playerName}\nVS\n${cpuName}`, {
-            fontSize: '30px', color: '#ffffff', align: 'center', fontStyle: 'bold', lineSpacing: 8
-        }).setOrigin(0.5);
-        this.cutsceneObjects.add(vsText);
-
-        const tapToStartText = this.add.text(gameWidth/2, gameHeight/2 + bandHeight/2 + 30, '画面をタップ', {
-            fontSize: '22px', color: '#cccccc', align: 'center'
-        }).setOrigin(0.5);
-        this.cutsceneObjects.add(tapToStartText);
-
-        this.cutsceneObjects.setVisible(true);
     }
 
 
