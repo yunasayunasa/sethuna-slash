@@ -1,6 +1,6 @@
 // --- グローバル設定 ---
-const GAME_WIDTH = 400;
-const GAME_HEIGHT = 700;
+const GAME_WIDTH = 450;
+const GAME_HEIGHT = 800;
 const PLAYER_INITIAL_X_LEFT = GAME_WIDTH * 0.25;
 const PLAYER_INITIAL_X_RIGHT = GAME_WIDTH * 0.75;
 const CPU_INITIAL_X_LEFT = GAME_WIDTH * 0.25;
@@ -71,7 +71,7 @@ class TitleScene extends Phaser.Scene {
         const gameHeight = this.cameras.main.height;
 
         this.add.text(gameWidth / 2, gameHeight * 0.15, '刹那の', { fontSize: '48px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
-        this.add.text(gameWidth / 2, gameHeight * 0.25, 'MI・KI・RI', { fontSize: '52px', color: '#ffff00', fontStyle: 'italic bold' }).setOrigin(0.5);
+        this.add.text(gameWidth / 2, gameHeight * 0.25, 'SLASH', { fontSize: '52px', color: '#ffff00', fontStyle: 'italic bold' }).setOrigin(0.5);
 
         let yPos = gameHeight * 0.45;
         for (const diffKey in DIFFICULTIES) {
