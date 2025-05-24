@@ -28,69 +28,29 @@ class TitleScene extends Phaser.Scene {
         // console.log('[LOG] TitleScene preload: Started');
     }
 
-   // GameScene クラス内の create メソッドを以下に置き換えてください
-
-    create() {
-        // [DEBUG LOG START] --------------------------------------
-        console.log('[LOG] GameScene create: Started');
+    create() { // ★★★ TitleScene の本来の create メソッド ★★★
+        console.log('[LOG] TitleScene create: Started');
         try {
-        // [DEBUG LOG END] ----------------------------------------
-
-            // console.log('GameScene Creating...'); // Original log
-            this.cameras.main.setBackgroundColor('#4488AA');
-            const gameWidth = this.cameras.main.width;
-            const gameHeight = this.cameras.main.height;
-
-            // [DEBUG LOG START] --------------------------------------
-            console.log('[LOG] GameScene create: Creating playerSprite');
-            // [DEBUG LOG END] ----------------------------------------
-            this.playerSprite = this.add.rectangle(0, 0, 60, 100, 0x00ff00).setOrigin(0.5);
-            // [DEBUG LOG START] --------------------------------------
-            console.log('[LOG] GameScene create: playerSprite type:', typeof this.playerSprite, 'instanceof Phaser.GameObjects.Rectangle:', this.playerSprite instanceof Phaser.GameObjects.Rectangle, 'has setVisible:', !!(this.playerSprite && typeof this.playerSprite.setVisible === 'function'));
-            console.log('[LOG] GameScene create: Creating cpuSprite');
-            // [DEBUG LOG END] ----------------------------------------
-            this.cpuSprite = this.add.rectangle(0, 0, 60, 100, 0xff0000).setOrigin(0.5);
-            // [DEBUG LOG START] --------------------------------------
-            console.log('[LOG] GameScene create: cpuSprite type:', typeof this.cpuSprite, 'instanceof Phaser.GameObjects.Rectangle:', this.cpuSprite instanceof Phaser.GameObjects.Rectangle, 'has setVisible:', !!(this.cpuSprite && typeof this.cpuSprite.setVisible === 'function'));
-            console.log('[LOG] GameScene create: Creating signalObject');
-            // [DEBUG LOG END] ----------------------------------------
-            this.signalObject = this.add.text(gameWidth / 2, gameHeight * 0.4, '！', { fontSize: '120px', color: '#FFFF00', fontStyle: 'bold' })
-                .setOrigin(0.5)
-                .setVisible(false); // 初期状態で非表示にするのは問題ありません
-            // [DEBUG LOG START] --------------------------------------
-            console.log('[LOG] GameScene create: signalObject type:', typeof this.signalObject, 'instanceof Phaser.GameObjects.Text:', this.signalObject instanceof Phaser.GameObjects.Text, 'has setVisible:', !!(this.signalObject && typeof this.signalObject.setVisible === 'function'));
-            console.log('[LOG] GameScene create: Creating infoText');
-            // [DEBUG LOG END] ----------------------------------------
-            this.infoText = this.add.text(gameWidth / 2, gameHeight * 0.1, '', { fontSize: '32px', color: '#FFFFFF', align: 'center', lineSpacing: 8 }).setOrigin(0.5);
-            // [DEBUG LOG START] --------------------------------------
-            console.log('[LOG] GameScene create: Creating resultText');
-            // [DEBUG LOG END] ----------------------------------------
-            this.resultText = this.add.text(gameWidth / 2, gameHeight * 0.58, '', { fontSize: '36px', color: '#FFFFFF', align: 'center', lineSpacing: 10 }).setOrigin(0.5);
-
-            // [DEBUG LOG START] --------------------------------------
-            console.log('[LOG] GameScene create: About to call setGameState with state:', this.gameState);
-            // [DEBUG LOG END] ----------------------------------------
-            this.setGameState(this.gameState);
-
-            // [DEBUG LOG START] --------------------------------------
-            console.log('[LOG] GameScene create: Adding input listener');
-            // [DEBUG LOG END] ----------------------------------------
-            this.input.off('pointerdown', this.handlePlayerInput, this);
-            this.input.on('pointerdown', this.handlePlayerInput, this);
-
-        // [DEBUG LOG START] --------------------------------------
-            console.log('[LOG] GameScene create: Finished successfully');
+            this.createTextObjects(); // タイトル画面の要素を描画するメソッドを呼び出す
+            console.log('[LOG] TitleScene create: Finished successfully');
         } catch (error) {
-            console.error('[FATAL LOG] Error in GameScene create:', error);
-            if (error.stack) console.error('[FATAL LOG] Stack trace (create):', error.stack);
+            console.error('[FATAL LOG] Error in TitleScene create:', error);
+            if (error.stack) console.error('[FATAL LOG] Stack trace (TitleScene create):', error.stack);
         }
-        // [DEBUG LOG END] ----------------------------------------
     }
 
     createTextObjects() {
+        console.log('[LOG] TitleScene createTextObjects: Started');
+        if (!this.cameras || !this.cameras.main) {
+            console.error('[FATAL LOG] TitleScene: this.cameras.main is not available!');
+            return;
+        }
+        console.log('[LOG] TitleScene createTextObjects: Cameras are available.');
+
         this.cameras.main.setBackgroundColor('#333333');
         const gameWidth = this.cameras.main.width;
         const gameHeight = this.cameras.main.height;
+        console.log(`[LOG] TitleScene createTextObjects: gameWidth=${gameWidth}, gameHeight=${gameHeight}`);
 
         this.add.text(gameWidth / 2, gameHeight * 0.15, '刹那の', {
             fontSize: '48px', color: '#ffffff', fontStyle: 'bold',
@@ -107,7 +67,6 @@ class TitleScene extends Phaser.Scene {
                 .on('pointerdown', () => {
                     currentDifficultyKey = diffKey;
                     currentOpponentIndex = 0;
-                    // console.log(`[LOG] TitleScene: Starting GameScene with diff: ${currentDifficultyKey}, oppIdx: ${currentOpponentIndex}`);
                     this.scene.start('GameScene', { difficulty: currentDifficultyKey, opponentIndex: currentOpponentIndex });
                 });
             this.add.text(button.x, button.y, diff.name, { fontSize: '32px', color: '#000000', fontStyle: 'bold' }).setOrigin(0.5);
@@ -125,8 +84,17 @@ class TitleScene extends Phaser.Scene {
             this.add.text(gameWidth / 2, scoreLineY, `${DIFFICULTIES[diffKey].name} クリア: ${clears}回`, { fontSize: '18px', color: '#B0B0B0' }).setOrigin(0.5);
             scoreLineY += 25;
         }
+        console.log('[LOG] TitleScene createTextObjects: Finished successfully');
     }
 }
+
+   
+
+   // GameScene クラス内の create メソッドを以下に置き換えてください
+
+   
+
+    
 
 // --- Game Scene ---
 class GameScene extends Phaser.Scene {
@@ -230,9 +198,7 @@ class GameScene extends Phaser.Scene {
     }
 
     setGameState(newState) {
-        // [DEBUG LOG START] --------------------------------------
         console.log(`[LOG] setGameState: Changing from ${this.gameState} to ${newState}`);
-        // [DEBUG LOG END] ----------------------------------------
         this.gameState = newState;
         this.playerInputEnabled = false;
         // console.log("State changed to:", this.gameState); // Original log
@@ -246,60 +212,30 @@ class GameScene extends Phaser.Scene {
 
         switch (this.gameState) {
             case 'pre_battle':
-                // [DEBUG LOG START] --------------------------------------
                 console.log('[LOG] setGameState pre_battle: Started setup');
-                // [DEBUG LOG END] ----------------------------------------
                 this.playerReactTime = undefined;
                 this.cpuReactTime = undefined;
                 this.signalTime = undefined;
 
-                // [DEBUG LOG START] --------------------------------------
                 console.log('[LOG] setGameState pre_battle: Setting sprite visibility');
-
-                // playerSprite のチェックと setVisible
-                console.log('[LOG] setGameState pre_battle: Checking playerSprite. Valid:', !!(this.playerSprite && typeof this.playerSprite.setVisible === 'function'), 'Value:', this.playerSprite);
-                if (this.playerSprite) {
-                    this.playerSprite.setVisible(false);
-                } else {
-                    console.warn('[LOG] playerSprite is null or invalid in pre_battle setup, cannot call setVisible.');
-                }
-
-                // cpuSprite のチェックと setVisible
-                console.log('[LOG] setGameState pre_battle: Checking cpuSprite. Valid:', !!(this.cpuSprite && typeof this.cpuSprite.setVisible === 'function'), 'Value:', this.cpuSprite);
-                if (this.cpuSprite) {
-                    this.cpuSprite.setVisible(false);
-                } else {
-                    console.warn('[LOG] cpuSprite is null or invalid in pre_battle setup, cannot call setVisible.');
-                }
-
-                // signalObject のチェックと setVisible
-                console.log('[LOG] setGameState pre_battle: Checking signalObject. Valid:', !!(this.signalObject && typeof this.signalObject.setVisible === 'function'), 'Value:', this.signalObject);
-                if (this.signalObject) {
-                    this.signalObject.setVisible(false);
-                } else {
-                    console.warn('[LOG] signalObject is null or invalid in pre_battle setup, cannot call setVisible.');
-                }
+                if (this.playerSprite) this.playerSprite.setVisible(false); else console.warn('[LOG] playerSprite is null in pre_battle setup');
+                if (this.cpuSprite) this.cpuSprite.setVisible(false); else console.warn('[LOG] cpuSprite is null in pre_battle setup');
+                if (this.signalObject) this.signalObject.setVisible(false); else console.warn('[LOG] signalObject is null in pre_battle setup');
 
                 console.log('[LOG] setGameState pre_battle: Setting text');
-                // [DEBUG LOG END] ----------------------------------------
                 if (this.infoText) this.infoText.setText(''); else console.warn('[LOG] infoText is null in pre_battle setup');
                 if (this.resultText) this.resultText.setText(''); else console.warn('[LOG] resultText is null in pre_battle setup');
 
-                // [DEBUG LOG START] --------------------------------------
                 console.log('[LOG] setGameState pre_battle: Scheduling showPreBattleCutscene');
-                // [DEBUG LOG END] ----------------------------------------
                 this.time.delayedCall(10, () => {
-                    // [DEBUG LOG START] --------------------------------------
                     console.log('[LOG] setGameState pre_battle (delayedCall): Executing showPreBattleCutscene');
-                    // [DEBUG LOG END] ----------------------------------------
                     this.showPreBattleCutscene();
                 }, [], this);
 
                 this.playerInputEnabled = true;
-                // [DEBUG LOG START] --------------------------------------
                 console.log('[LOG] setGameState pre_battle: Finished setup');
-                // [DEBUG LOG END] ----------------------------------------
-                break
+                break;
+
             case 'waiting':
                 console.log('[LOG] setGameState waiting: Started setup');
                 if(this.playerSprite) this.playerSprite.setVisible(true);
