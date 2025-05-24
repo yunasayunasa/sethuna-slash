@@ -135,7 +135,7 @@ class GameScene extends Phaser.Scene {
     preload() {
         console.log('[LOG] GameScene preload: Started');
         // 背景 (TitleSceneでロード済みなら通常は不要)
-        if (!this.textures.exists(ASSETS.BG_MAIN)) this.load.image(ASSETS.BG_MAIN, `assets/${ASSETS.BG_MAIN}.png`);
+        if (!this.textures.exists(ASSETS.BG_MAIN)) this.load.image(ASSETS.BG_MAIN, `assets/${ASSETS.BG_MAIN}.jpg`);
         // 主人公
         this.load.image(ASSETS.PLAYER_IDLE, `assets/${ASSETS.PLAYER_IDLE}.png`);
         this.load.image(ASSETS.PLAYER_READY, `assets/${ASSETS.PLAYER_READY}.png`);
