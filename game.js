@@ -96,10 +96,10 @@ class TitleScene extends Phaser.Scene {
         }).setOrigin(0.5).setStroke('#000000', 6);
 
         // 難易度選択ボタン
-        let yPos = GAME_HEIGHT * 0.70; // ボタン群の開始Y位置調整
+        let yPos = GAME_HEIGHT * 0.68; // ボタン群の開始Y位置調整
         const buttonWidth = GAME_WIDTH * 0.30; // ボタン幅調整
-        const buttonHeight = 55; // ボタン高さ調整
-        const buttonSpacing = 15; // ボタン間のY方向の間隔
+        const buttonHeight = 50; // ボタン高さ調整
+        const buttonSpacing = 10; // ボタン間のY方向の間隔
 
         for (const diffKey in DIFFICULTIES) {
             const diff = DIFFICULTIES[diffKey];
@@ -117,8 +117,8 @@ class TitleScene extends Phaser.Scene {
         }
 
         // スコア表示 (左上に配置)
-        const scoreXStart = GAME_WIDTH * 0.03; // X位置調整
-        const scoreYStart = GAME_HEIGHT * 0.05; // Y位置調整
+        const scoreXStart = GAME_WIDTH * 0.05; // X位置調整
+        const scoreYStart = GAME_HEIGHT * 0.1; // Y位置調整
         const scoreLineHeight = 22; // スコア各行の高さ
 
         this.add.text(scoreXStart, scoreYStart, '--- 戦績 ---', {
@@ -318,27 +318,75 @@ class GameScene extends Phaser.Scene {
         this.showResult();
     }
 
-    showResult() {
-        if (this.gameState !== 'signal' && this.playerReactTime !== -1) return;
-        this.sound.play(ASSETS.SE_CLASH, {volume: 0.6});
-        const flash = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0xffffff, 0.5).setDepth(100);
-        this.time.delayedCall(60, () => { if(flash && flash.active) flash.destroy(); });
-        this.time.delayedCall(70, () => {
-            this.playerIsLeft = !this.playerIsLeft;
-            if(this.playerSprite) this.playerSprite.setX(this.playerIsLeft ? PLAYER_X_LEFT : PLAYER_X_RIGHT);
-            if(this.cpuSprite) this.cpuSprite.setX(this.playerIsLeft ? CPU_X_RIGHT : CPU_X_LEFT);
-            this.performResultLogic();
+     showResult() {
+        console.log(`[LOG] showResult: Called in state ${this.gameState}. PlayerReactTime: ${this.playerReactTime}`); // ★ログ追加★
+        if (this.gameState !== 'signal' && this.playerReactTime !== -1) {
+             console.warn(`[LOG] showResult: Called in unexpected state ${this.gameState} and not a false start. Bailing.`);
+             return;
+        }
+
+        console.log('[LOG] showResult: Playing SE_CLASH'); // ★ログ追加★
+        try {
+            this.sound.play(ASSETS.SE_CLASH, {volume: 0.6});
+            console.log('[LOG] showResult: SE_CLASH played (or at least attempted)'); // ★ログ追加★
+        } catch (e) {
+            console.error('[ERROR LOG] showResult: Error playing SE_CLASH', e); // ★エラーキャッチ★
+        }
+
+
+        console.log('[LOG] showResult: Creating flash rectangle'); // ★ログ追加★
+        let flash = null; // スコープを広げる
+        try {
+            flash = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0xffffff, 0.5).setDepth(100);
+            console.log('[LOG] showResult: Flash rectangle created'); // ★ログ追加★
+        } catch (e) {
+            console.error('[ERROR LOG] showResult: Error creating flash rectangle', e); // ★エラーキャッチ★
+        }
+
+
+        console.log('[LOG] showResult: Scheduling flash destroy'); // ★ログ追加★
+        this.time.delayedCall(60, () => {
+            console.log('[LOG] showResult (delayedCall for flash.destroy): Attempting to destroy flash'); // ★ログ追加★
+            if(flash && flash.active) { // flashがnullでないことも確認
+                try {
+                    flash.destroy();
+                    console.log('[LOG] showResult (delayedCall for flash.destroy): Flash destroyed'); // ★ログ追加★
+                } catch(e) {
+                    console.error('[ERROR LOG] showResult: Error destroying flash', e);
+                }
+            } else {
+                console.warn('[LOG] showResult (delayedCall for flash.destroy): Flash is null or inactive');
+            }
         });
+
+        console.log('[LOG] showResult: Scheduling position swap and performResultLogic'); // ★ログ追加★
+        this.time.delayedCall(70, () => {
+            console.log('[LOG] showResult (delayedCall for logic): Performing position swap'); // ★ログ追加★
+            try {
+                this.playerIsLeft = !this.playerIsLeft;
+                if(this.playerSprite) this.playerSprite.setX(this.playerIsLeft ? PLAYER_X_LEFT : PLAYER_X_RIGHT);
+                if(this.cpuSprite) this.cpuSprite.setX(this.playerIsLeft ? CPU_X_RIGHT : CPU_X_LEFT);
+                console.log('[LOG] showResult (delayedCall for logic): Position swapped, calling performResultLogic'); // ★ログ追加★
+                this.performResultLogic();
+            } catch (e) {
+                console.error('[ERROR LOG] showResult: Error in position swap or calling performResultLogic', e);
+            }
+        });
+        console.log('[LOG] showResult: Finished scheduling delayed calls'); // ★ログ追加★
     }
 
     performResultLogic() {
-        if (this.gameState === 'result' && this.resultText && this.resultText.text !== '' && this.resultText.text.includes('タップして')) { return; }
+        console.log('[LOG] performResultLogic: Started'); // ★ログ追加★
+        if (this.gameState === 'result' && this.resultText && this.resultText.text !== '' && this.resultText.text.includes('タップして')) { return; }  console.log('[LOG] performResultLogic: Stopping BGM'); // ★ログ追加★
+        this.stopGameBGM();
+        console.log('[LOG] performResultLogic: Setting gameState to result'); // ★ログ追加★
         this.stopGameBGM(); this.setGameState('result');
         let message = '';
         const pReact = this.playerReactTime === undefined ? Infinity : this.playerReactTime;
         const cReact = this.cpuReactTime === undefined ? Infinity : this.cpuReactTime;
         this.winLastRound = false;
-        const cpuAssetKeyPrefix = `CPU${currentOpponentNumber}`;
+        const cpuAssetKeyPrefix = `CPU${currentOpponentNumber}`;     console.log(`[LOG] performResultLogic: pReact=${pReact}, cReact=${cReact}`); // ★ログ追加★
+
 
         if (pReact === -1) {
             message = `お手つき！\nあなたの負け`;
