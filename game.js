@@ -85,12 +85,12 @@ class TitleScene extends Phaser.Scene {
         const centerY = GAME_HEIGHT / 2; // For centering some elements vertically
 
         // タイトルロゴ
-        this.add.text(centerX, GAME_HEIGHT * 0.25, '刹那の', { // Y位置調整
+        this.add.text(centerX, GAME_HEIGHT * 0.25, '刹那ファンタジー', { // Y位置調整
             fontSize: '52px', color: '#FFFFFF', fontStyle: 'bold',
             // fontFamily: 'Arial' // フォント指定が必要なら
         }).setOrigin(0.5).setStroke('#000000', 6);
 
-        this.add.text(centerX, GAME_HEIGHT * 0.42, 'MI・KI・RI', { // Y位置調整
+        this.add.text(centerX, GAME_HEIGHT * 0.42, 'VERSUS:RISING', { // Y位置調整
             fontSize: '60px', color: '#FFFF00', fontStyle: 'italic bold',
             // fontFamily: 'Impact'
         }).setOrigin(0.5).setStroke('#000000', 6);
