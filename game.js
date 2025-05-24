@@ -1,34 +1,39 @@
 // --- グローバル設定 ---
-const GAME_WIDTH = 800;
-const GAME_HEIGHT = 450;
-const PLAYER_INITIAL_X_LEFT = GAME_WIDTH * 0.25;
-const PLAYER_INITIAL_X_RIGHT = GAME_WIDTH * 0.75;
-const CPU_INITIAL_X_LEFT = GAME_WIDTH * 0.25;
-const CPU_INITIAL_X_RIGHT = GAME_WIDTH * 0.75;
+const GAME_WIDTH = 800;  // 横長に変更
+const GAME_HEIGHT = 450; // 横長に変更
 
-// アセットキー (仮)
+// X座標の初期値 (横長に合わせて調整)
+const PLAYER_X_RIGHT = GAME_WIDTH * 0.75; // プレイヤーは右固定 (斬撃後は左へ)
+const PLAYER_X_LEFT = GAME_WIDTH * 0.25;
+const CPU_X_LEFT = GAME_WIDTH * 0.25;     // CPUは左固定 (斬撃後は右へ)
+const CPU_X_RIGHT = GAME_WIDTH * 0.75;
+
+const CHARACTER_Y_POSITION = GAME_HEIGHT * 0.88; // キャラクターのY座標 (足元基準)
+const CHARACTER_SCALE = 0.6; // キャラクターの表示スケール (0.1～1.0で調整)
+
+// アセットキー
 const ASSETS = {
     BG_MAIN: 'backgroundMain',
     PLAYER_IDLE: 'playerIdle', PLAYER_READY: 'playerReady', PLAYER_WIN: 'playerWin', PLAYER_LOSE: 'playerLose',
-    CPU1_IDLE: 'cpu1Idle', CPU1_READY: 'cpu1Ready', CPU1_WIN: 'cpu1Win', CPU1_LOSE: 'cpu1Lose',
-    CPU2_IDLE: 'cpu2Idle', CPU2_READY: 'cpu2Ready', CPU2_WIN: 'cpu2Win', CPU2_LOSE: 'cpu2Lose',
-    CPU3_IDLE: 'cpu3Idle', CPU3_READY: 'cpu3Ready', CPU3_WIN: 'cpu3Win', CPU3_LOSE: 'cpu3Lose',
+    CPU1_IDLE: 'CPU1_IDLE', CPU1_READY: 'CPU1_READY', CPU1_WIN: 'CPU1_WIN', CPU1_LOSE: 'CPU1_LOSE', // 1人目
+    CPU2_IDLE: 'CPU2_IDLE', CPU2_READY: 'CPU2_READY', CPU2_WIN: 'CPU2_WIN', CPU2_LOSE: 'CPU2_LOSE', // 2人目
+    CPU3_IDLE: 'CPU3_IDLE', CPU3_READY: 'CPU3_READY', CPU3_WIN: 'CPU3_WIN', CPU3_LOSE: 'CPU3_LOSE', // 3人目
     SIGNAL_MARK: 'signalMark',
     BGM_VERSUS: 'bgmVersus',
     SE_CLASH: 'seClash'
 };
 
-const DIFFICULTIES = {
-    easy:   { name: 'やさしい', minReact: 250, maxReact: 500, color: 0x88ff88, cpuAssetPrefix: 'CPU1', cpuDisplayName: '若武者' },
-    normal: { name: 'ふつう',   minReact: 150, maxReact: 400, color: 0xffff88, cpuAssetPrefix: 'CPU2', cpuDisplayName: '剣豪' },
-    hard:   { name: 'つよい',   minReact: 100, maxReact: 250, color: 0xff8888, cpuAssetPrefix: 'CPU3', cpuDisplayName: '剣聖' }
+const DIFFICULTIES = { // CPUの強さ設定のみに使用
+    easy:   { name: 'やさしい', minReact: 250, maxReact: 500, color: 0x88ff88 },
+    normal: { name: 'ふつう',   minReact: 150, maxReact: 400, color: 0xffff88 },
+    hard:   { name: 'つよい',   minReact: 100, maxReact: 250, color: 0xff8888 }
 };
-let currentDifficultyKey = 'normal';
+let currentDifficultyKey = 'normal'; // プレイヤーが選択する難易度
 let cpuMinReact = DIFFICULTIES[currentDifficultyKey].minReact;
 let cpuMaxReact = DIFFICULTIES[currentDifficultyKey].maxReact;
 
-const MAX_OPPONENTS = 3; // 各難易度で3人のCPUがいると仮定 (アセット上は1種類を使い回す)
-let currentOpponentNumber = 1; // 1, 2, 3 (表示用)
+const MAX_OPPONENTS = 3;
+let currentOpponentNumber = 1; // 1, 2, 3 (CPU1, CPU2, CPU3に対応)
 
 let currentBgm = null;
 
@@ -47,55 +52,93 @@ class TitleScene extends Phaser.Scene {
 
     create() {
         console.log('[LOG] TitleScene create: Started');
-        this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, ASSETS.BG_MAIN);
+        this.cameras.main.setBackgroundColor('#000000'); // 背景の余白を黒に
+        this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, ASSETS.BG_MAIN); // 背景画像は画面サイズに合わせて調整されるか、中央配置
 
-        this.createTextObjects();
+        this.createTextObjects(); // テキストやボタンの生成
 
-        this.playTitleBGM();
+        this.playTitleBGM(); // BGM再生
         console.log('[LOG] TitleScene create: Finished');
     }
 
     playTitleBGM() {
         if (currentBgm && currentBgm.isPlaying && currentBgm.key === ASSETS.BGM_VERSUS) {
             // Do nothing if already playing the same BGM
-        } else {
-            if (currentBgm) currentBgm.stop();
-            currentBgm = this.sound.add(ASSETS.BGM_VERSUS, { loop: true, volume: 0.4 }); // 音量少し調整
-            currentBgm.play();
+            return;
+        }
+        if (currentBgm) {
+            currentBgm.stop();
+        }
+        // 'this.sound.get' to check if already loaded by another scene (like GameScene)
+        currentBgm = this.sound.get(ASSETS.BGM_VERSUS) || this.sound.add(ASSETS.BGM_VERSUS);
+        if (currentBgm && !currentBgm.isPlaying) {
+            currentBgm.play({ loop: true, volume: 0.4 });
             console.log('[LOG] TitleScene: BGM playing');
+        } else if (!currentBgm) {
+            console.error("[LOG] TitleScene: BGM asset not found or loaded.")
         }
     }
 
     createTextObjects() {
-        const gameWidth = this.cameras.main.width;
-        const gameHeight = this.cameras.main.height;
+        console.log('[LOG] TitleScene createTextObjects: Started');
+        const centerX = GAME_WIDTH / 2;
+        const centerY = GAME_HEIGHT / 2; // For centering some elements vertically
 
-        this.add.text(gameWidth / 2, gameHeight * 0.15, '刹那の', { fontSize: '48px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
-        this.add.text(gameWidth / 2, gameHeight * 0.25, 'SLASH', { fontSize: '52px', color: '#ffff00', fontStyle: 'italic bold' }).setOrigin(0.5);
+        // タイトルロゴ
+        this.add.text(centerX, GAME_HEIGHT * 0.25, '刹那の', { // Y位置調整
+            fontSize: '52px', color: '#FFFFFF', fontStyle: 'bold',
+            // fontFamily: 'Arial' // フォント指定が必要なら
+        }).setOrigin(0.5).setStroke('#000000', 6);
 
-        let yPos = gameHeight * 0.45;
+        this.add.text(centerX, GAME_HEIGHT * 0.42, 'MI・KI・RI', { // Y位置調整
+            fontSize: '60px', color: '#FFFF00', fontStyle: 'italic bold',
+            // fontFamily: 'Impact'
+        }).setOrigin(0.5).setStroke('#000000', 6);
+
+        // 難易度選択ボタン
+        let yPos = GAME_HEIGHT * 0.70; // ボタン群の開始Y位置調整
+        const buttonWidth = GAME_WIDTH * 0.30; // ボタン幅調整
+        const buttonHeight = 55; // ボタン高さ調整
+        const buttonSpacing = 15; // ボタン間のY方向の間隔
+
         for (const diffKey in DIFFICULTIES) {
             const diff = DIFFICULTIES[diffKey];
-            const button = this.add.rectangle(gameWidth / 2, yPos, gameWidth * 0.7, 65, diff.color)
+            const button = this.add.rectangle(centerX, yPos, buttonWidth, buttonHeight, diff.color)
                 .setInteractive({ useHandCursor: true })
                 .on('pointerdown', () => {
                     currentDifficultyKey = diffKey;
-                    currentOpponentNumber = 1; // リセット
+                    currentOpponentNumber = 1;
                     this.scene.start('GameScene', { difficulty: currentDifficultyKey, opponentNum: currentOpponentNumber });
                 });
-            this.add.text(button.x, button.y, diff.name, { fontSize: '32px', color: '#000000', fontStyle: 'bold' }).setOrigin(0.5);
-            yPos += 90;
+            this.add.text(button.x, button.y, diff.name, {
+                fontSize: '24px', color: '#000000', fontStyle: 'bold' // ボタン内テキストサイズ調整
+            }).setOrigin(0.5);
+            yPos += buttonHeight + buttonSpacing;
         }
-        const scoreYStart = gameHeight * 0.78;
-        this.add.text(gameWidth / 2, scoreYStart, '--- 戦績 ---', { fontSize: '24px', color: '#cccccc' }).setOrigin(0.5);
+
+        // スコア表示 (左上に配置)
+        const scoreXStart = GAME_WIDTH * 0.03; // X位置調整
+        const scoreYStart = GAME_HEIGHT * 0.05; // Y位置調整
+        const scoreLineHeight = 22; // スコア各行の高さ
+
+        this.add.text(scoreXStart, scoreYStart, '--- 戦績 ---', {
+            fontSize: '18px', color: '#DDDDDD' // サイズ調整
+        }).setOrigin(0, 0.5).setStroke('#000000', 3);
+
         const bestTime = localStorage.getItem('bestReactionTime') || '-';
-        this.add.text(gameWidth / 2, scoreYStart + 30, `最速反応: ${bestTime}${bestTime !== '-' ? ' ms' : ''}`, { fontSize: '20px', color: '#E0E0E0' }).setOrigin(0.5);
-        let scoreLineY = scoreYStart + 60;
+        this.add.text(scoreXStart, scoreYStart + scoreLineHeight, `最速反応: ${bestTime}${bestTime !== '-' ? ' ms' : ''}`, {
+            fontSize: '16px', color: '#CCCCCC' // サイズ調整
+        }).setOrigin(0, 0.5).setStroke('#000000', 3);
+
+        let currentScoreLineY = scoreYStart + scoreLineHeight * 2;
         for (const diffKey in DIFFICULTIES) {
             const clears = localStorage.getItem(`${diffKey}_clears`) || '0';
-            this.add.text(gameWidth / 2, scoreLineY, `${DIFFICULTIES[diffKey].name} クリア: ${clears}回`, { fontSize: '18px', color: '#B0B0B0' }).setOrigin(0.5);
-            scoreLineY += 25;
+            this.add.text(scoreXStart, currentScoreLineY, `${DIFFICULTIES[diffKey].name} クリア: ${clears}回`, {
+                fontSize: '14px', color: '#AAAAAA' // サイズ調整
+            }).setOrigin(0, 0.5).setStroke('#000000', 2);
+            currentScoreLineY += scoreLineHeight * 0.8; // 行間調整
         }
+        console.log('[LOG] TitleScene createTextObjects: Finished');
     }
 }
 
@@ -116,57 +159,62 @@ class GameScene extends Phaser.Scene {
         currentOpponentNumber = (data && data.opponentNum !== undefined) ? data.opponentNum : 1;
 
         const diffSetting = DIFFICULTIES[currentDifficultyKey];
+        cpuMinReact = diffSetting.minReact;
+        cpuMaxReact = diffSetting.maxReact;
         if (currentDifficultyKey === 'hard') {
-            const baseMin = diffSetting.minReact;
-            const baseMax = diffSetting.maxReact;
-            // 対戦相手番号(1,2,3)に応じて調整 (0,1,2)として使う
-            const reductionFactor = (currentOpponentNumber - 1) * 15;
-            cpuMinReact = Math.max(80, baseMin - reductionFactor);
-            cpuMaxReact = Math.max(150, baseMax - reductionFactor * 1.3);
+            const reductionFactor = (currentOpponentNumber - 1) * 10;
+            cpuMinReact = Math.max(70, cpuMinReact - reductionFactor);
+            cpuMaxReact = Math.max(130, cpuMaxReact - reductionFactor * 1.2);
             if (cpuMinReact >= cpuMaxReact - 10) cpuMinReact = cpuMaxReact - 20;
-        } else {
-            cpuMinReact = diffSetting.minReact;
-            cpuMaxReact = diffSetting.maxReact;
         }
         this.gameState = 'waiting';
-        console.log(`[LOG] GameScene init: Opponent ${currentOpponentNumber}, CPU React: ${cpuMinReact}-${cpuMaxReact}ms. gameState: ${this.gameState}`);
+        console.log(`[LOG] GameScene init: Opponent ${currentOpponentNumber}, CPU Strength (from ${currentDifficultyKey}): ${cpuMinReact}-${cpuMaxReact}ms. gameState: ${this.gameState}`);
     }
 
     preload() {
         console.log('[LOG] GameScene preload: Started');
-        // 背景 (TitleSceneでロード済みなら通常は不要)
-        if (!this.textures.exists(ASSETS.BG_MAIN)) this.load.image(ASSETS.BG_MAIN, `assets/${ASSETS.BG_MAIN}.jpg`);
-        // 主人公
+        if (!this.textures.exists(ASSETS.BG_MAIN)) { // TitleSceneでロード済みのはずだが念のため
+            this.load.image(ASSETS.BG_MAIN, `assets/${ASSETS.BG_MAIN}.jpg`);
+        }
         this.load.image(ASSETS.PLAYER_IDLE, `assets/${ASSETS.PLAYER_IDLE}.png`);
         this.load.image(ASSETS.PLAYER_READY, `assets/${ASSETS.PLAYER_READY}.png`);
         this.load.image(ASSETS.PLAYER_WIN, `assets/${ASSETS.PLAYER_WIN}.png`);
         this.load.image(ASSETS.PLAYER_LOSE, `assets/${ASSETS.PLAYER_LOSE}.png`);
-        // CPU (難易度ごとにアセットプレフィックスを使用)
-        for (const key in DIFFICULTIES) {
-            const prefix = DIFFICULTIES[key].cpuAssetPrefix;
-            this.load.image(`${prefix}_IDLE`, `assets/${prefix}_IDLE.png`);
-            this.load.image(`${prefix}_READY`, `assets/${prefix}_READY.png`);
-            this.load.image(`${prefix}_WIN`, `assets/${prefix}_WIN.png`);
-            this.load.image(`${prefix}_LOSE`, `assets/${prefix}_LOSE.png`);
+        for (let i = 1; i <= 3; i++) {
+            this.load.image(`CPU${i}_IDLE`, `assets/CPU${i}_IDLE.png`);
+            this.load.image(`CPU${i}_READY`, `assets/CPU${i}_READY.png`);
+            this.load.image(`CPU${i}_WIN`, `assets/CPU${i}_WIN.png`);
+            this.load.image(`CPU${i}_LOSE`, `assets/CPU${i}_LOSE.png`);
         }
         this.load.image(ASSETS.SIGNAL_MARK, `assets/${ASSETS.SIGNAL_MARK}.png`);
-        this.load.audio(ASSETS.SE_CLASH, [`assets/${ASSETS.SE_CLASH}.mp3`, `assets/${ASSETS.SE_CLASH}.mp3`]);
-        if (!this.sound.get(ASSETS.BGM_VERSUS)) this.load.audio(ASSETS.BGM_VERSUS, [`assets/${ASSETS.BGM_VERSUS}.mp3`, `assets/${ASSETS.BGM_VERSUS}.ogg`]);
+        this.load.audio(ASSETS.SE_CLASH, [`assets/${ASSETS.SE_CLASH}.wav`, `assets/${ASSETS.SE_CLASH}.mp3`]);
+        if (!this.sound.get(ASSETS.BGM_VERSUS)) { // TitleSceneでロード済みのはずだが念のため
+            this.load.audio(ASSETS.BGM_VERSUS, [`assets/${ASSETS.BGM_VERSUS}.mp3`, `assets/${ASSETS.BGM_VERSUS}.ogg`]);
+        }
         console.log('[LOG] GameScene preload: Finished');
     }
 
     create() {
         console.log('[LOG] GameScene create: Started');
+        this.cameras.main.setBackgroundColor('#000000'); // 背景の余白を黒に
         this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, ASSETS.BG_MAIN);
 
-        this.playerSprite = this.add.image(0, 0, ASSETS.PLAYER_IDLE).setOrigin(0.5);
-        const cpuAssetPrefix = DIFFICULTIES[currentDifficultyKey].cpuAssetPrefix;
-        this.cpuSprite = this.add.image(0, 0, `${cpuAssetPrefix}_IDLE`).setOrigin(0.5);
-        this.signalObject = this.add.image(GAME_WIDTH / 2, GAME_HEIGHT * 0.4, ASSETS.SIGNAL_MARK).setOrigin(0.5).setVisible(false).setScale(1.2);
-        this.infoText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT * 0.1, '', { fontSize: '30px', color: '#FFFFFF', align: 'center', lineSpacing: 8 }).setOrigin(0.5);
-        this.resultText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT * 0.58, '', { fontSize: '34px', color: '#FFFFFF', align: 'center', lineSpacing: 10 }).setOrigin(0.5);
+        this.playerSprite = this.add.image(0,0, ASSETS.PLAYER_IDLE).setOrigin(0.5, 1).setScale(CHARACTER_SCALE);
+        const cpuAssetKeyPrefix = `CPU${currentOpponentNumber}`;
+        this.cpuSprite = this.add.image(0,0, `${cpuAssetKeyPrefix}_IDLE`).setOrigin(0.5, 1).setScale(CHARACTER_SCALE);
 
-        this.setGameState(this.gameState); // 'waiting'から開始
+        this.signalObject = this.add.image(GAME_WIDTH / 2, GAME_HEIGHT * 0.40, ASSETS.SIGNAL_MARK) // Y位置調整
+            .setOrigin(0.5).setVisible(false).setScale(1.1); // スケール調整
+
+        this.infoText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT * 0.12, '', { // Y位置、フォントサイズ調整
+            fontSize: '26px', color: '#FFFFFF', align: 'center', lineSpacing: 6
+        }).setOrigin(0.5).setStroke('#000000', 4);
+
+        this.resultText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT * 0.55, '', { // Y位置、フォントサイズ調整
+            fontSize: '30px', color: '#FFFFFF', align: 'center', lineSpacing: 8
+        }).setOrigin(0.5).setStroke('#000000', 5);
+
+        this.setGameState(this.gameState);
 
         this.input.off('pointerdown', this.handlePlayerInput, this);
         this.input.on('pointerdown', this.handlePlayerInput, this);
@@ -174,16 +222,14 @@ class GameScene extends Phaser.Scene {
     }
 
     playGameBGM() {
-        // console.log(`[LOG] playGameBGM: currentBgm.isPlaying=${currentBgm ? currentBgm.isPlaying : 'null'}, key=${currentBgm ? currentBgm.key : 'null'}`);
-        if (currentBgm && currentBgm.isPlaying && currentBgm.key === ASSETS.BGM_VERSUS) {
-            // 既に同じBGMが再生中なら何もしない (シーンリスタート時など)
-        } else {
-            if (currentBgm) currentBgm.stop();
-            currentBgm = this.sound.get(ASSETS.BGM_VERSUS) || this.sound.add(ASSETS.BGM_VERSUS);
-            if (!currentBgm.isPlaying) { // 再生中でなければ再生
-                currentBgm.play({ loop: true, volume: 0.4 });
-                console.log('[LOG] GameScene: BGM playing');
-            }
+        if (currentBgm && currentBgm.isPlaying && currentBgm.key === ASSETS.BGM_VERSUS) return;
+        if (currentBgm) currentBgm.stop();
+        currentBgm = this.sound.get(ASSETS.BGM_VERSUS) || this.sound.add(ASSETS.BGM_VERSUS);
+        if (currentBgm && !currentBgm.isPlaying) {
+            currentBgm.play({ loop: true, volume: 0.4 });
+            console.log('[LOG] GameScene: BGM playing');
+        } else if (!currentBgm) {
+             console.error("[LOG] GameScene: BGM asset not found or loaded.")
         }
     }
 
@@ -196,31 +242,28 @@ class GameScene extends Phaser.Scene {
 
     setGameState(newState) {
         console.log(`[LOG] setGameState: Changing from ${this.gameState} to ${newState}`);
-        this.gameState = newState;
-        this.playerInputEnabled = false;
+        this.gameState = newState; this.playerInputEnabled = false;
         if (this.cpuTimer) { this.cpuTimer.remove(false); this.cpuTimer = null; }
         if (this.signalTimer) { this.signalTimer.remove(false); this.signalTimer = null; }
-
-        const cpuAssetPrefix = DIFFICULTIES[currentDifficultyKey].cpuAssetPrefix;
+        const cpuAssetKeyPrefix = `CPU${currentOpponentNumber}`;
 
         switch (this.gameState) {
             case 'waiting':
                 this.playGameBGM();
                 if(this.playerSprite) this.playerSprite.setVisible(true).setTexture(ASSETS.PLAYER_IDLE);
-                if(this.cpuSprite) this.cpuSprite.setVisible(true).setTexture(`${cpuAssetPrefix}_IDLE`);
-                const opponentDisplayName = DIFFICULTIES[currentDifficultyKey].cpuDisplayName; // 表示用のCPU名
-                if(this.infoText) this.infoText.setText(`${opponentDisplayName} (${currentOpponentNumber}/${MAX_OPPONENTS})\n画面をタップして開始`);
+                if(this.cpuSprite) this.cpuSprite.setVisible(true).setTexture(`${cpuAssetKeyPrefix}_IDLE`);
+                if(this.infoText) this.infoText.setText(`相手 ${currentOpponentNumber}人目\n画面をタップして開始`);
                 if(this.resultText) this.resultText.setText('');
                 if(this.signalObject) this.signalObject.setVisible(false);
                 this.playerIsLeft = false;
-                if(this.playerSprite) this.playerSprite.setPosition(PLAYER_INITIAL_X_RIGHT, GAME_HEIGHT * 0.75);
-                if(this.cpuSprite) this.cpuSprite.setPosition(CPU_INITIAL_X_LEFT, GAME_HEIGHT * 0.75);
+                if(this.playerSprite) this.playerSprite.setPosition(PLAYER_X_RIGHT, CHARACTER_Y_POSITION);
+                if(this.cpuSprite) this.cpuSprite.setPosition(CPU_X_LEFT, CHARACTER_Y_POSITION);
                 this.playerReactTime = undefined; this.cpuReactTime = undefined; this.signalTime = undefined;
                 this.playerInputEnabled = true;
                 break;
             case 'ready':
                 if(this.playerSprite) this.playerSprite.setTexture(ASSETS.PLAYER_READY);
-                if(this.cpuSprite) this.cpuSprite.setTexture(`${cpuAssetPrefix}_READY`);
+                if(this.cpuSprite) this.cpuSprite.setTexture(`${cpuAssetKeyPrefix}_READY`);
                 if(this.infoText) this.infoText.setText('構え！');
                 this.playerInputEnabled = true;
                 const waitTime = Phaser.Math.Between(1500, 3500);
@@ -229,41 +272,31 @@ class GameScene extends Phaser.Scene {
             case 'signal':
                 if(this.infoText) this.infoText.setText('斬！');
                 if(this.signalObject) this.signalObject.setVisible(true);
-                this.signalTime = this.time.now;
-                this.playerInputEnabled = true;
+                this.signalTime = this.time.now; this.playerInputEnabled = true;
                 const cpuReactionDelay = Phaser.Math.Between(cpuMinReact, cpuMaxReact);
                 this.cpuTimer = this.time.delayedCall(cpuReactionDelay, this.handleCpuInput, [], this);
                 break;
             case 'result':
-                this.stopGameBGM(); // 結果表示の最初にBGM停止
-                this.playerInputEnabled = false;
+                this.stopGameBGM(); this.playerInputEnabled = false;
                 if(this.signalObject) this.signalObject.setVisible(false);
                 this.time.delayedCall(600, () => { this.playerInputEnabled = true; });
                 break;
-            default:
-                console.warn(`[LOG] setGameState: Unknown state ${newState}`);
+            default: console.warn(`[LOG] setGameState: Unknown state ${newState}`);
         }
     }
 
-    showSignal() {
-        if (this.gameState === 'ready') this.setGameState('signal');
-    }
+    showSignal() { if (this.gameState === 'ready') this.setGameState('signal'); }
 
     handlePlayerInput() {
         if (!this.playerInputEnabled) return;
         const currentTime = this.time.now;
-
-        if (this.gameState === 'waiting') {
-            this.setGameState('ready');
-        } else if (this.gameState === 'ready') { // フライング
+        if (this.gameState === 'waiting') this.setGameState('ready');
+        else if (this.gameState === 'ready') {
             this.playerReactTime = -1; this.cpuReactTime = 99999;
             if (this.signalTimer) { this.signalTimer.remove(); this.signalTimer = null; }
-            // フライング時はperformResultLogicでテクスチャ設定
             this.performResultLogic();
         } else if (this.gameState === 'signal') {
-            this.playerReactTime = currentTime - this.signalTime;
-            this.playerInputEnabled = false;
-            // プレイヤーの斬るテクスチャ変更はperformResultLogicで行う（勝敗に応じて）
+            this.playerReactTime = currentTime - this.signalTime; this.playerInputEnabled = false;
             if (this.cpuReactTime !== undefined) this.showResult();
         } else if (this.gameState === 'result') {
             if (this.winLastRound) {
@@ -272,114 +305,88 @@ class GameScene extends Phaser.Scene {
                     this.scene.restart({ difficulty: currentDifficultyKey, opponentNum: currentOpponentNumber });
                 } else {
                     if(this.resultText) this.resultText.setText(`${DIFFICULTIES[currentDifficultyKey].name} 制覇！\nタップしてタイトルへ`);
-                    this.winLastRound = false; // 次のタップはタイトルへ
+                    this.winLastRound = false;
                 }
-            } else {
-                this.scene.start('TitleScene'); // 敗北または制覇後のタップ
-            }
+            } else this.scene.start('TitleScene');
         }
     }
 
     handleCpuInput() {
-        if (this.gameState !== 'signal') return;
-        if (this.signalTime === undefined) return;
+        if (this.gameState !== 'signal' || this.signalTime === undefined) return;
         this.cpuReactTime = this.time.now - this.signalTime;
-        // CPUの斬るテクスチャ変更はperformResultLogicで
-        if (this.playerReactTime === undefined) {
-            this.playerReactTime = 9999; this.playerInputEnabled = false;
-        }
+        if (this.playerReactTime === undefined) { this.playerReactTime = 9999; this.playerInputEnabled = false; }
         this.showResult();
     }
 
     showResult() {
         if (this.gameState !== 'signal' && this.playerReactTime !== -1) return;
         this.sound.play(ASSETS.SE_CLASH, {volume: 0.6});
-        const flash = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0xffffff, 0.6).setDepth(100);
-        this.time.delayedCall(70, () => { if(flash && flash.active) flash.destroy(); }); // activeチェック追加
-        this.time.delayedCall(80, () => { // 少しタイミング調整
+        const flash = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0xffffff, 0.5).setDepth(100);
+        this.time.delayedCall(60, () => { if(flash && flash.active) flash.destroy(); });
+        this.time.delayedCall(70, () => {
             this.playerIsLeft = !this.playerIsLeft;
-            if(this.playerSprite) this.playerSprite.setX(this.playerIsLeft ? PLAYER_INITIAL_X_LEFT : PLAYER_INITIAL_X_RIGHT);
-            if(this.cpuSprite) this.cpuSprite.setX(this.playerIsLeft ? PLAYER_INITIAL_X_RIGHT : CPU_INITIAL_X_LEFT);
+            if(this.playerSprite) this.playerSprite.setX(this.playerIsLeft ? PLAYER_X_LEFT : PLAYER_X_RIGHT);
+            if(this.cpuSprite) this.cpuSprite.setX(this.playerIsLeft ? CPU_X_RIGHT : CPU_X_LEFT);
             this.performResultLogic();
         });
     }
 
     performResultLogic() {
-        if (this.gameState === 'result' && this.resultText && this.resultText.text !== '') { // 既に結果表示済みなら重複処理しない
-             console.log('[LOG] performResultLogic: Already in result and text set, skipping.');
-             return;
-        }
-        this.stopGameBGM(); // ここで確実にBGM停止
-        this.setGameState('result'); // 必ず最初にステートを'result'に
-
+        if (this.gameState === 'result' && this.resultText && this.resultText.text !== '' && this.resultText.text.includes('タップして')) { return; }
+        this.stopGameBGM(); this.setGameState('result');
         let message = '';
         const pReact = this.playerReactTime === undefined ? Infinity : this.playerReactTime;
         const cReact = this.cpuReactTime === undefined ? Infinity : this.cpuReactTime;
         this.winLastRound = false;
-        const cpuAssetPrefix = DIFFICULTIES[currentDifficultyKey].cpuAssetPrefix;
+        const cpuAssetKeyPrefix = `CPU${currentOpponentNumber}`;
 
         if (pReact === -1) {
             message = `お手つき！\nあなたの負け`;
             if(this.playerSprite) this.playerSprite.setTexture(ASSETS.PLAYER_LOSE);
-            if(this.cpuSprite) this.cpuSprite.setTexture(`${cpuAssetPrefix}_WIN`);
+            if(this.cpuSprite) this.cpuSprite.setTexture(`${cpuAssetKeyPrefix}_WIN`);
         } else if (pReact === 9999 && cReact < 9999) {
             message = `遅い！\nあなたの負け\n(相手: ${cReact.toFixed(0)} ms)`;
             if(this.playerSprite) this.playerSprite.setTexture(ASSETS.PLAYER_LOSE);
-            if(this.cpuSprite) this.cpuSprite.setTexture(`${cpuAssetPrefix}_WIN`);
+            if(this.cpuSprite) this.cpuSprite.setTexture(`${cpuAssetKeyPrefix}_WIN`);
         } else if (pReact < cReact) {
             message = `あなたの勝ち！\n\nあなた: ${pReact.toFixed(0)} ms\n相手: ${cReact.toFixed(0)} ms`;
             if(this.playerSprite) this.playerSprite.setTexture(ASSETS.PLAYER_WIN);
-            if(this.cpuSprite) this.cpuSprite.setTexture(`${cpuAssetPrefix}_LOSE`);
-            this.winLastRound = true;
-            this.updateBestReaction(pReact);
+            if(this.cpuSprite) this.cpuSprite.setTexture(`${cpuAssetKeyPrefix}_LOSE`);
+            this.winLastRound = true; this.updateBestReaction(pReact);
         } else if (pReact > cReact) {
             message = `あなたの負け\n\nあなた: ${pReact.toFixed(0)} ms\n相手: ${cReact.toFixed(0)} ms`;
             if(this.playerSprite) this.playerSprite.setTexture(ASSETS.PLAYER_LOSE);
-            if(this.cpuSprite) this.cpuSprite.setTexture(`${cpuAssetPrefix}_WIN`);
+            if(this.cpuSprite) this.cpuSprite.setTexture(`${cpuAssetKeyPrefix}_WIN`);
         } else if (pReact === cReact && pReact !== 9999 && pReact !== -1 && pReact !== Infinity) {
             message = `引き分け！\n\n両者: ${pReact.toFixed(0)} ms`;
             if(this.playerSprite) this.playerSprite.setTexture(ASSETS.PLAYER_IDLE);
-            if(this.cpuSprite) this.cpuSprite.setTexture(`${cpuAssetPrefix}_IDLE`);
+            if(this.cpuSprite) this.cpuSprite.setTexture(`${cpuAssetKeyPrefix}_IDLE`);
         } else {
-            message = `予期せぬエラー`;
-            if(this.playerSprite) this.playerSprite.setTexture(ASSETS.PLAYER_LOSE);
-            if(this.cpuSprite) this.cpuSprite.setTexture(`${cpuAssetPrefix}_IDLE`); // エラー時はCPUも待機
+            message = `勝負つかず！`;
+            if(this.playerSprite) this.playerSprite.setTexture(ASSETS.PLAYER_IDLE);
+            if(this.cpuSprite) this.cpuSprite.setTexture(`${cpuAssetKeyPrefix}_IDLE`);
         }
-
         if (this.winLastRound) {
-            if (currentOpponentNumber < MAX_OPPONENTS) {
-                message += `\n\nタップして次の相手へ`;
-            } else {
-                message += `\n\n${DIFFICULTIES[currentDifficultyKey].name} 制覇！\nタップしてタイトルへ`;
-                this.updateClearCount(currentDifficultyKey);
-            }
-        } else {
-             message += `\n\nタップしてタイトルへ`;
-        }
+            if (currentOpponentNumber < MAX_OPPONENTS) message += `\n\nタップして次の相手へ`;
+            else { message += `\n\n${DIFFICULTIES[currentDifficultyKey].name} 制覇！\nタップしてタイトルへ`; this.updateClearCount(currentDifficultyKey); }
+        } else message += `\n\nタップしてタイトルへ`;
         if(this.resultText) this.resultText.setText(message);
     }
 
     updateBestReaction(reactionTime) {
         if (reactionTime < 0 || reactionTime >= 9999) return;
         const bestTime = parseFloat(localStorage.getItem('bestReactionTime')) || Infinity;
-        if (reactionTime < bestTime) {
-            localStorage.setItem('bestReactionTime', reactionTime.toFixed(0));
-        }
+        if (reactionTime < bestTime) localStorage.setItem('bestReactionTime', reactionTime.toFixed(0));
     }
     updateClearCount(difficultyKey) {
-        const key = `${difficultyKey}_clears`;
-        let clears = parseInt(localStorage.getItem(key)) || 0;
-        clears++;
-        localStorage.setItem(key, clears.toString());
+        const key = `${difficultyKey}_clears`; let clears = parseInt(localStorage.getItem(key)) || 0;
+        clears++; localStorage.setItem(key, clears.toString());
     }
 }
 
 // --- Phaserゲーム設定 ---
 const config = {
-    type: Phaser.AUTO,
-    width: GAME_WIDTH,
-    height: GAME_HEIGHT,
-    parent: 'game-container',
+    type: Phaser.AUTO, width: GAME_WIDTH, height: GAME_HEIGHT, parent: 'game-container',
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
     scene: [TitleScene, GameScene]
 };
@@ -387,41 +394,19 @@ const config = {
 const game = new Phaser.Game(config);
 
 /* --- アセットファイル名一覧 (仮) ---
-   以下の名前で assets/ フォルダ直下にファイルを配置してください。
-   (拡張子は .png, .wav, .mp3, .ogg など適宜)
-
+   assets/ フォルダ直下に配置
 // 背景
 backgroundMain.png
-
 // 主人公
-playerIdle.png
-playerReady.png // 構え用。待機と同じ画像でもOK
-playerWin.png
-playerLose.png
-
-// CPU1 (やさしい) - DIFFICULTIESのcpuAssetPrefixに対応
-CPU1_IDLE.png
-CPU1_READY.png
-CPU1_WIN.png
-CPU1_LOSE.png
-
-
-// CPU2 (ふつう)
-CPU2_IDLE.png
-CPU2_READY.png
-CPU2_WIN.png
-CPU2_LOSE.png
-
-// CPU3 (つよい)
-CPU3_IDLE.png
-CPU3_READY.png
-CPU3_WIN.png
-CPU3_LOSE.png
-
+playerIdle.png, playerReady.png, playerWin.png, playerLose.png
+// CPU1 (1人目)
+CPU1_IDLE.png, CPU1_READY.png, CPU1_WIN.png, CPU1_LOSE.png
+// CPU2 (2人目)
+CPU2_IDLE.png, CPU2_READY.png, CPU2_WIN.png, CPU2_LOSE.png
+// CPU3 (3人目)
+CPU3_IDLE.png, CPU3_READY.png, CPU3_WIN.png, CPU3_LOSE.png
 // 合図マーク
 signalMark.png
-
 // 音声
-bgmVersus.mp3  (または .ogg) // タイトルとゲーム中共通
-seClash.wav    (または .mp3) // 斬り合った音
+bgmVersus.mp3 (or .ogg), seClash.wav (or .mp3)
 ------------------------------------ */
