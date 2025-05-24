@@ -187,7 +187,7 @@ class GameScene extends Phaser.Scene {
             this.load.image(`CPU${i}_LOSE`, `assets/CPU${i}_LOSE.png`);
         }
         this.load.image(ASSETS.SIGNAL_MARK, `assets/${ASSETS.SIGNAL_MARK}.png`);
-        this.load.audio(ASSETS.SE_CLASH, [`assets/${ASSETS.SE_CLASH}.wav`, `assets/${ASSETS.SE_CLASH}.mp3`]);
+        this.load.audio(ASSETS.SE_CLASH, [`assets/${ASSETS.SE_CLASH}.wav`, `assets/seClash.mp3`]);
         if (!this.sound.get(ASSETS.BGM_VERSUS)) { // TitleSceneでロード済みのはずだが念のため
             this.load.audio(ASSETS.BGM_VERSUS, [`assets/${ASSETS.BGM_VERSUS}.mp3`, `assets/${ASSETS.BGM_VERSUS}.ogg`]);
         }
