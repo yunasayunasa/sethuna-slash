@@ -13,7 +13,7 @@ const ASSETS = {
     CPU1_IDLE: 'cpu1Idle', CPU1_READY: 'cpu1Ready', CPU1_WIN: 'cpu1Win', CPU1_LOSE: 'cpu1Lose',
     CPU2_IDLE: 'cpu2Idle', CPU2_READY: 'cpu2Ready', CPU2_WIN: 'cpu2Win', CPU2_LOSE: 'cpu2Lose',
     CPU3_IDLE: 'cpu3Idle', CPU3_READY: 'cpu3Ready', CPU3_WIN: 'cpu3Win', CPU3_LOSE: 'cpu3Lose',
-    SIGNAL_MARK: 'signalMark',
+    //SIGNAL_MARK: 'signalMark',
     BGM_VERSUS: 'bgmVersus',
     SE_CLASH: 'seClash'
 };
@@ -149,8 +149,8 @@ class GameScene extends Phaser.Scene {
             this.load.image(`${prefix}_WIN`, `assets/${prefix}_WIN.png`);
             this.load.image(`${prefix}_LOSE`, `assets/${prefix}_LOSE.png`);
         }
-        this.load.image(ASSETS.SIGNAL_MARK, `assets/${ASSETS.SIGNAL_MARK}.png`);
-        this.load.audio(ASSETS.SE_CLASH, [`assets/${ASSETS.SE_CLASH}.wav`, `assets/${ASSETS.SE_CLASH}.mp3`]);
+      //  this.load.image(ASSETS.SIGNAL_MARK, `assets/${ASSETS.SIGNAL_MARK}.png`);
+        this.load.audio(ASSETS.SE_CLASH, [`assets/${ASSETS.SE_CLASH}.mp3`, `assets/${ASSETS.SE_CLASH}.mp3`]);
         if (!this.sound.get(ASSETS.BGM_VERSUS)) this.load.audio(ASSETS.BGM_VERSUS, [`assets/${ASSETS.BGM_VERSUS}.mp3`, `assets/${ASSETS.BGM_VERSUS}.ogg`]);
         console.log('[LOG] GameScene preload: Finished');
     }
@@ -162,7 +162,7 @@ class GameScene extends Phaser.Scene {
         this.playerSprite = this.add.image(0, 0, ASSETS.PLAYER_IDLE).setOrigin(0.5);
         const cpuAssetPrefix = DIFFICULTIES[currentDifficultyKey].cpuAssetPrefix;
         this.cpuSprite = this.add.image(0, 0, `${cpuAssetPrefix}_IDLE`).setOrigin(0.5);
-        this.signalObject = this.add.image(GAME_WIDTH / 2, GAME_HEIGHT * 0.4, ASSETS.SIGNAL_MARK).setOrigin(0.5).setVisible(false).setScale(1.2);
+       // this.signalObject = this.add.image(GAME_WIDTH / 2, GAME_HEIGHT * 0.4, ASSETS.SIGNAL_MARK).setOrigin(0.5).setVisible(false).setScale(1.2);
         this.infoText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT * 0.1, '', { fontSize: '30px', color: '#FFFFFF', align: 'center', lineSpacing: 8 }).setOrigin(0.5);
         this.resultText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT * 0.58, '', { fontSize: '34px', color: '#FFFFFF', align: 'center', lineSpacing: 10 }).setOrigin(0.5);
 
