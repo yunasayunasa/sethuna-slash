@@ -1,6 +1,6 @@
 // --- グローバル設定 ---
-const GAME_WIDTH = 450;
-const GAME_HEIGHT = 800;
+const GAME_WIDTH = 800;
+const GAME_HEIGHT = 450;
 const PLAYER_INITIAL_X_LEFT = GAME_WIDTH * 0.25;
 const PLAYER_INITIAL_X_RIGHT = GAME_WIDTH * 0.75;
 const CPU_INITIAL_X_LEFT = GAME_WIDTH * 0.25;
@@ -40,7 +40,7 @@ class TitleScene extends Phaser.Scene {
 
     preload() {
         console.log('[LOG] TitleScene preload: Started');
-        this.load.image(ASSETS.BG_MAIN, `assets/${ASSETS.BG_MAIN}.png`);
+        this.load.image(ASSETS.BG_MAIN, `assets/${ASSETS.BG_MAIN}.jpg`);
         this.load.audio(ASSETS.BGM_VERSUS, [`assets/${ASSETS.BGM_VERSUS}.mp3`, `assets/${ASSETS.BGM_VERSUS}.ogg`]);
         console.log('[LOG] TitleScene preload: Finished');
     }
