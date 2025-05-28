@@ -139,7 +139,47 @@ class TitleScene extends Phaser.Scene {
             currentScoreLineY += scoreLineHeight * 0.8; // 行間調整
         }
         console.log('[LOG] TitleScene createTextObjects: Finished');
+        // ★★★ Firebaseからランキングを読み込んで表示 ★★★
+        const rankingYStart = GAME_HEIGHT * 0.5; // 表示開始位置 (調整してください)
+        const rankingTitle = this.add.text(GAME_WIDTH * 0.75, rankingYStart - 30, '--- オンラインランキング ---', {
+            fontSize: '20px', color: '#FFD700' // 金色っぽく
+        }).setOrigin(0.5).setStroke('#000000', 3);
+
+        if (typeof database !== 'undefined') {
+            const scoresRef = database.ref('scores');
+            // スコアの昇順（小さいほど良い）で上位5件を取得
+            scoresRef.orderByChild('score').limitToFirst(5).once('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    let y = rankingYStart;
+                    let rank = 1;
+                    snapshot.forEach((childSnapshot) => { // 取得したデータをループ処理
+                        const scoreData = childSnapshot.val();
+                        this.add.text(GAME_WIDTH * 0.75, y,
+                            `${rank}. ${scoreData.score.toFixed(0)} ms (${scoreData.difficulty || 'unknown'})`, {
+                            fontSize: '16px', color: '#FFFFFF'
+                        }).setOrigin(0.5, 0).setStroke('#000000', 2);
+                        y += 20;
+                        rank++;
+                    });
+                } else {
+                    this.add.text(GAME_WIDTH * 0.75, rankingYStart, '(まだ記録がありません)', {
+                        fontSize: '16px', color: '#AAAAAA'
+                    }).setOrigin(0.5, 0).setStroke('#000000', 2);
+                }
+            }, (errorObject) => {
+                console.error('[Firebase] The read failed: ' + errorObject.name);
+                this.add.text(GAME_WIDTH * 0.75, rankingYStart, '(ランキング取得エラー)', {
+                    fontSize: '16px', color: '#FF8888'
+                }).setOrigin(0.5, 0).setStroke('#000000', 2);
+            });
+        } else {
+            this.add.text(GAME_WIDTH * 0.75, rankingYStart, '(ランキング機能オフライン)', {
+                fontSize: '16px', color: '#AAAAAA'
+            }).setOrigin(0.5, 0).setStroke('#000000', 2);
+        }
+        // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
     }
+    
 }
 
 // --- Game Scene ---
@@ -396,11 +436,33 @@ class GameScene extends Phaser.Scene {
             message = `遅い！\nあなたの負け\n(相手: ${cReact.toFixed(0)} ms)`;
             if(this.playerSprite) this.playerSprite.setTexture(ASSETS.PLAYER_LOSE);
             if(this.cpuSprite) this.cpuSprite.setTexture(`${cpuAssetKeyPrefix}_WIN`);
-        } else if (pReact < cReact) {
+         } else if (pReact < cReact) { // プレイヤー勝利
             message = `あなたの勝ち！\n\nあなた: ${pReact.toFixed(0)} ms\n相手: ${cReact.toFixed(0)} ms`;
             if(this.playerSprite) this.playerSprite.setTexture(ASSETS.PLAYER_WIN);
             if(this.cpuSprite) this.cpuSprite.setTexture(`${cpuAssetKeyPrefix}_LOSE`);
-            this.winLastRound = true; this.updateBestReaction(pReact);
+            this.winLastRound = true;
+            this.updateBestReaction(pReact); // ローカルの最速も更新
+
+            // ★★★ Firebaseにスコアを保存 ★★★
+            if (typeof database !== 'undefined') { // databaseが初期化されていれば
+                try {
+                    const scoresRef = database.ref('scores'); // 'scores' パスへの参照
+                    const newScoreRef = scoresRef.push();    // 新しいユニークIDを生成して参照を取得
+                    newScoreRef.set({
+                        score: pReact, // 反応時間
+                        difficulty: currentDifficultyKey,
+                        timestamp: firebase.database.ServerValue.TIMESTAMP // サーバー側のタイムスタンプ
+                        // name: "YOU" // 必要であればプレイヤー名も
+                    })
+                    .then(() => console.log('[Firebase] Score saved successfully!'))
+                    .catch((error) => console.error('[Firebase] Error saving score: ', error));
+                } catch (e) {
+                    console.error('[Firebase] Exception while trying to save score: ', e);
+                }
+            } else {
+                console.warn('[Firebase] Database not initialized, score not saved.');
+            }
+            // ★★★★★★★★★★★★★★★★★★★
         } else if (pReact > cReact) {
             message = `あなたの負け\n\nあなた: ${pReact.toFixed(0)} ms\n相手: ${cReact.toFixed(0)} ms`;
             if(this.playerSprite) this.playerSprite.setTexture(ASSETS.PLAYER_LOSE);
