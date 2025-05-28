@@ -377,67 +377,16 @@ class GameScene extends Phaser.Scene {
             this.playerReactTime = currentTime - this.signalTime; this.playerInputEnabled = false;
             if (this.cpuReactTime !== undefined) this.showResult();
         } else if (this.gameState === 'result') {
-            if (this.winLastRound) { // 前のラウンドで勝った場合
-                if (currentOpponentNumber < MAX_OPPONENTS) { // まだ次の相手がいる
+            if (this.winLastRound) {
+                if (currentOpponentNumber < MAX_OPPONENTS) {
                     currentOpponentNumber++;
-                  } else { // 3人抜き達成！
-                    console.log(`[LOG handlePlayerInput] All opponents defeated! OpponentNum: ${currentOpponentNumber}`);
-                    console.log(`[LOG handlePlayerInput] Attempting to save bestReactionTimeInSeries: ${this.bestReactionTimeInSeries === Infinity ? 'Infinity' : this.bestReactionTimeInSeries.toFixed(0)}`);
-                    // ★★★ ここで名前入力と最速スコアの保存を行う ★★★
-                    if (this.bestReactionTimeInSeries !== Infinity) { // 有効な記録がある場合のみ
-                        let playerName = localStorage.getItem('playerName');
-                        if (!playerName) {
-                             playerName = prompt("ランキング登録名 (10文字以内):", "挑戦者");
-                        } else {
-                             playerName = prompt("ランキング登録名 (10文字以内):", playerName);
-                        }
-
-                        if (playerName && playerName.trim() !== "") {
-                            playerName = playerName.trim().substring(0, 10);
-                            localStorage.setItem('playerName', playerName);
-
-                            if (typeof window.firebaseDatabase !== 'undefined' && typeof window.firebaseInitialized !== 'undefined' && window.firebaseInitialized) {
-                                try {
-                                    const databaseToUse = window.firebaseDatabase;
-                                    const scoresRef = databaseToUse.ref('scores');
-                                    const newScoreRef = scoresRef.push();
-                                    newScoreRef.set({
-                                        name: playerName,
-                                        score: this.bestReactionTimeInSeries, // ★シリーズ中の最速タイムを保存★
-                                        difficulty: currentDifficultyKey,
-                                        timestamp: firebase.database.ServerValue.TIMESTAMP
-                                    })
-                                    .then(() => {
-                                        console.log('[Firebase] Best series score saved successfully!');
-                                        if(this.resultText) this.resultText.setText(this.resultText.text + '\nランキング登録完了！\nタップしてタイトルへ');
-                                    })
-                                    .catch((error) => {
-                                        console.error('[Firebase] Error saving best series score: ', error);
-                                        if(this.resultText) this.resultText.setText(this.resultText.text + '\nランキング登録失敗…\nタップしてタイトルへ');
-                                    });
-                                } catch (e) {
-                                    console.error('[Firebase] Exception while trying to save best series score: ', e);
-                                    if(this.resultText) this.resultText.setText(this.resultText.text + '\nランキング登録エラー…\nタップしてタイトルへ');
-                                }
-                            } else {
-                                console.warn('[Firebase] Database not initialized, score not saved to online ranking.');
-                                if(this.resultText) this.resultText.setText(this.resultText.text + '\n(オンラインランキングオフライン)\nタップしてタイトルへ');
-                            }
-                        } else {
-                            console.log("Player name not provided for series best, score not saved to online ranking.");
-                            if(this.resultText) this.resultText.setText(this.resultText.text + '\n(名前未入力のため登録スキップ)\nタップしてタイトルへ');
-                        }
-                    } else {
-                         if(this.resultText) this.resultText.setText(this.resultText.text + '\n(有効な記録なし)\nタップしてタイトルへ');
-                    }
-                    this.winLastRound = false; // 次のタップはタイトルへ戻るように
-                    // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                    this.scene.restart({ difficulty: currentDifficultyKey, opponentNum: currentOpponentNumber });
+                } else {
+                    if(this.resultText) this.resultText.setText(`${DIFFICULTIES[currentDifficultyKey].name} 制覇！\nタップしてタイトルへ`);
+                    this.winLastRound = false;
                 }
-            } else { // 敗北または3人抜き達成後の(名前入力後の)タップ
-                this.scene.start('TitleScene');
-            }
+            } else this.scene.start('TitleScene');
         }
-    
     }
 
     handleCpuInput() {
@@ -524,20 +473,17 @@ class GameScene extends Phaser.Scene {
             message = `遅い！\nあなたの負け\n(相手: ${cReact.toFixed(0)} ms)`;
             if(this.playerSprite) this.playerSprite.setTexture(ASSETS.PLAYER_LOSE);
             if(this.cpuSprite) this.cpuSprite.setTexture(`${cpuAssetKeyPrefix}_WIN`);
-         } else if (pReact < cReact) { // プレイヤー勝利
+       } else if (pReact < cReact) { // プレイヤー勝利
             message = `あなたの勝ち！\n\nあなた: ${pReact.toFixed(0)} ms\n相手: ${cReact.toFixed(0)} ms`;
             if(this.playerSprite) this.playerSprite.setTexture(ASSETS.PLAYER_WIN);
             if(this.cpuSprite) this.cpuSprite.setTexture(`${cpuAssetKeyPrefix}_LOSE`);
             this.winLastRound = true;
-            this.updateBestReaction(pReact);
+            this.updateBestReaction(pReact); // ローカルの総合最速は毎回更新
 
             // ★★★ 今回のシリーズ中の最速タイムを更新 ★★★
-            console.log(`[LOG performResultLogic] Opponent ${currentOpponentNumber} win. pReact: ${pReact.toFixed(0)}, current bestInSeries: ${this.bestReactionTimeInSeries === Infinity ? 'Infinity' : this.bestReactionTimeInSeries.toFixed(0)}`);
             if (pReact < this.bestReactionTimeInSeries) {
                 this.bestReactionTimeInSeries = pReact;
-                console.log(`[LOG performResultLogic] New best reaction time in series: ${this.bestReactionTimeInSeries.toFixed(0)} ms`);
-            } else {
-                console.log(`[LOG performResultLogic] pReact was not better than bestInSeries. No update.`);
+                console.log(`[LOG] New best reaction time in series: ${this.bestReactionTimeInSeries.toFixed(0)} ms`);
             }
             // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★
         } else if (pReact > cReact) {
