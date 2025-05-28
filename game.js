@@ -170,17 +170,17 @@ class TitleScene extends Phaser.Scene {
                     if (snapshot.exists()) {
                         let y = rankingYStart;
                         let rank = 1;
-                        snapshot.forEach((childSnapshot) => { // ★このコールバック内が game.js:184 付近の可能性★
-                            try { // ★個々のテキスト生成をtry...catchで囲んでみる★
-                                const scoreData = childSnapshot.val();
-                                if (scoreData && typeof scoreData.score === 'number') { // scoreデータが存在し、数値であることを確認
-                                    const rankText = this.add.text(GAME_WIDTH * 0.75, y,
-                                        `${rank}. ${scoreData.score.toFixed(0)} ms (${scoreData.difficulty || 'N/A'})`, { // difficultyがundefinedの場合も考慮
-                                        fontSize: '16px', color: '#FFFFFF'
-                                    }).setOrigin(0.5, 0).setStroke('#000000', 2);
-                                    this.rankingTexts.push(rankText);
-                                    y += 20;
-                                    rank++;
+                        snapshot.forEach((childSnapshot) => {
+                            const scoreData = childSnapshot.val();
+                            if (scoreData && typeof scoreData.score === 'number') {
+                                const displayName = scoreData.name || "名無し"; // 名前がなければ "名無し"
+                                const rankText = this.add.text(GAME_WIDTH * 0.75, y,
+                                    `${rank}. ${displayName} - ${scoreData.score.toFixed(0)} ms (${scoreData.difficulty || 'N/A'})`, { // ★名前を表示★
+                                    fontSize: '16px', color: '#FFFFFF'
+                                }).setOrigin(0.5, 0).setStroke('#000000', 2);
+                                this.rankingTexts.push(rankText);
+                                y += 20;
+                                rank++;
                                 } else {
                                     console.warn('[TitleScene] Invalid score data found:', scoreData);
                                 }
@@ -473,22 +473,30 @@ class GameScene extends Phaser.Scene {
             this.winLastRound = true;
             this.updateBestReaction(pReact); // ローカルの最速も更新
 
-             // ★★★ Firebaseにスコアを保存 (window経由でアクセス) ★★★
-            console.log('[Firebase GameScene] Checking conditions to save score...');
-            console.log(`[Firebase GameScene] typeof window.firebaseDatabase: ${typeof window.firebaseDatabase}`);
-            console.log(`[Firebase GameScene] window.firebaseInitialized: ${typeof window.firebaseInitialized !== 'undefined' ? window.firebaseInitialized : 'undefined (flag itself)'}`);
+           // ★★★ 名前入力とFirebaseへの保存 ★★★
+            let playerName = localStorage.getItem('playerName'); // 前回入力した名前を記憶しておく (任意)
+            if (!playerName) { // まだ名前が保存されていないか、空の場合
+                 playerName = prompt("ランキング登録名 (10文字以内):", "挑戦者");
+            } else {
+                 playerName = prompt("ランキング登録名 (10文字以内):", playerName); // 前回のをデフォルトに
+            }
 
-            if (typeof window.firebaseDatabase !== 'undefined' && typeof window.firebaseInitialized !== 'undefined' && window.firebaseInitialized) {
-                console.log('[Firebase GameScene] Conditions met. Attempting to save score.');
-                try {
-                    const databaseToUse = window.firebaseDatabase; // ローカル変数に入れるとタイプ量が減る
-                    const scoresRef = databaseToUse.ref('scores'); // ref は database インスタンスのメソッド
-                    const newScoreRef = scoresRef.push();
-                    newScoreRef.set({
-                        score: pReact,
-                        difficulty: currentDifficultyKey,
-                        timestamp: firebase.database.ServerValue.TIMESTAMP // これは firebase グローバルオブジェクトのプロパティなので window 不要 (互換SDKの場合)
-                    })
+
+            if (playerName && playerName.trim() !== "") { // 名前が入力されたら
+                playerName = playerName.trim().substring(0, 10); // 空白除去と文字数制限
+                localStorage.setItem('playerName', playerName); // 次回のために保存
+
+                if (typeof window.firebaseDatabase !== 'undefined' && typeof window.firebaseInitialized !== 'undefined' && window.firebaseInitialized) {
+                    try {
+                        const databaseToUse = window.firebaseDatabase;
+                        const scoresRef = databaseToUse.ref('scores');
+                        const newScoreRef = scoresRef.push();
+                        newScoreRef.set({
+                            name: playerName, // ★名前を追加★
+                            score: pReact,
+                            difficulty: currentDifficultyKey,
+                            timestamp: firebase.database.ServerValue.TIMESTAMP
+                        })
                     .then(() => console.log('[Firebase] Score saved successfully!'))
                     .catch((error) => console.error('[Firebase] Error saving score: ', error));
                 } catch (e) {
