@@ -19,7 +19,7 @@
         <script src="https://www.gstatic.com/firebasejs/11.8.1/firebase-database-compat.js"></script>
 
 
-    <script src="game.js"></script>
+   
    <script type="module">
   // Import the functions you need from the SDKs you need
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
@@ -41,20 +41,22 @@
   };
 
   let firebaseApp;
-          let database;
-          let firebaseInitialized = false;
+          let database; // グローバルスコープで宣言
+          let firebaseInitialized = false; // 初期化フラグ
 
           try {
-            console.log('[Firebase] Attempting to initialize Firebase with config (compat SDK):', firebaseConfig);
-            // compat SDK を使えば、v8 と同じように firebase グローバルオブジェクトが使える
+            console.log('[Firebase HTML] Attempting to initialize Firebase with config:', JSON.parse(JSON.stringify(firebaseConfig))); // 設定内容を安全にログ出力
             firebaseApp = firebase.initializeApp(firebaseConfig);
-            database = firebase.database(firebaseApp); // または firebase.database();
+            database = firebase.database(firebaseApp); // v8互換の書き方
             firebaseInitialized = true;
-            console.log('[Firebase] Initialization successful (compat SDK).');
+            console.log('[Firebase HTML] Initialization successful. `database` object:', database ? 'Exists' : 'NULL or Undefined');
+            console.log('[Firebase HTML] `firebaseInitialized` flag:', firebaseInitialized);
           } catch (e) {
-            console.error('[Firebase] Initialization failed (compat SDK):', e);
-            firebaseInitialized = false;
+            console.error('[Firebase HTML] Initialization failed:', e);
+            firebaseInitialized = false; // 初期化失敗フラグを明示的にfalseに
+            console.log('[Firebase HTML] `firebaseInitialized` flag (on error):', firebaseInitialized);
           }
         </script>
+         <script src="game.js"></script>
 </body>
 </html>

@@ -477,15 +477,19 @@ class GameScene extends Phaser.Scene {
             this.updateBestReaction(pReact); // ローカルの最速も更新
 
             // ★★★ Firebaseにスコアを保存 ★★★
-            if (typeof database !== 'undefined') { // databaseが初期化されていれば
+           // ★★★ Firebaseにスコアを保存 ★★★
+            console.log('[Firebase GameScene] Checking conditions to save score...'); // ★追加ログ★
+            console.log(`[Firebase GameScene] typeof database: ${typeof database}`); // ★追加ログ★
+            console.log(`[Firebase GameScene] firebaseInitialized: ${typeof firebaseInitialized !== 'undefined' ? firebaseInitialized : 'undefined (flag itself)'}`); // ★追加ログ★
+
+            if (typeof database !== 'undefined' && typeof firebaseInitialized !== 'undefined' && firebaseInitialized) {
+                console.log('[Firebase GameScene] Conditions met. Attempting to save score.'); // ★追加ログ★
                 try {
-                    const scoresRef = database.ref('scores'); // 'scores' パスへの参照
-                    const newScoreRef = scoresRef.push();    // 新しいユニークIDを生成して参照を取得
+                    const scoresRef = database.ref('scores');
+                    const newScoreRef = scoresRef.push();
                     newScoreRef.set({
-                        score: pReact, // 反応時間
+                        score: pReact,
                         difficulty: currentDifficultyKey,
-                       // ★★★ TIMESTAMP の書き方を v8 互換のまま試す ★★★
-                        // もしこれでエラーが出るなら、v9 の serverTimestamp() への変更が必要
                         timestamp: firebase.database.ServerValue.TIMESTAMP
                     })
                     .then(() => console.log('[Firebase] Score saved successfully!'))
@@ -494,7 +498,9 @@ class GameScene extends Phaser.Scene {
                     console.error('[Firebase] Exception while trying to save score: ', e);
                 }
             } else {
-                console.warn('[Firebase] Database not initialized, score not saved.');
+                console.warn('[Firebase GameScene] Database not initialized or init failed, score not saved. Details below:'); // ★ログ変更★
+                console.warn(`[Firebase GameScene]   - typeof database: ${typeof database}`); // ★詳細ログ★
+                console.warn(`[Firebase GameScene]   - firebaseInitialized: ${typeof firebaseInitialized !== 'undefined' ? firebaseInitialized : 'undefined (flag itself)'}`); // ★詳細ログ★
             }
             // ★★★★★★★★★★★★★★★★★★★
         } else if (pReact > cReact) {
