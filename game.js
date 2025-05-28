@@ -230,22 +230,37 @@ class GameScene extends Phaser.Scene {
          this.bestReactionTimeInSeries = Infinity; // ★現在の3連戦中の最速タイムを保持する変数★
     }
 
+  // GameScene の init メソッド
     init(data) {
         console.log('[LOG] GameScene init: Started with data:', data);
         currentDifficultyKey = (data && data.difficulty !== undefined) ? data.difficulty : 'normal';
         currentOpponentNumber = (data && data.opponentNum !== undefined) ? data.opponentNum : 1;
 
         const diffSetting = DIFFICULTIES[currentDifficultyKey];
-        cpuMinReact = diffSetting.minReact;
-        cpuMaxReact = diffSetting.maxReact;
+        // ... (cpuMinReact, cpuMaxReact の設定は変更なし) ...
         if (currentDifficultyKey === 'hard') {
+            const baseMin = diffSetting.minReact;
+            const baseMax = diffSetting.maxReact;
             const reductionFactor = (currentOpponentNumber - 1) * 10;
             cpuMinReact = Math.max(70, cpuMinReact - reductionFactor);
             cpuMaxReact = Math.max(130, cpuMaxReact - reductionFactor * 1.2);
             if (cpuMinReact >= cpuMaxReact - 10) cpuMinReact = cpuMaxReact - 20;
+        } else {
+            cpuMinReact = diffSetting.minReact;
+            cpuMaxReact = diffSetting.maxReact;
         }
+
+
         this.gameState = 'waiting';
-         this.bestReactionTimeInSeries = Infinity; // ★各難易度挑戦開始時にリセット★
+        // ★★★ currentOpponentNumber が 1 (最初の相手) の場合のみ bestReactionTimeInSeries をリセット ★★★
+        if (currentOpponentNumber === 1) {
+            this.bestReactionTimeInSeries = Infinity;
+            console.log('[LOG] GameScene init: Series started, bestReactionTimeInSeries reset to Infinity.');
+        } else {
+            console.log(`[LOG] GameScene init: Continuing series, bestReactionTimeInSeries remains: ${this.bestReactionTimeInSeries === Infinity ? 'Infinity' : this.bestReactionTimeInSeries.toFixed(0)}`);
+        }
+        // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
         console.log(`[LOG] GameScene init: Opponent ${currentOpponentNumber}, CPU Strength (from ${currentDifficultyKey}): ${cpuMinReact}-${cpuMaxReact}ms. gameState: ${this.gameState}`);
     }
 
