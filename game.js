@@ -402,7 +402,7 @@ class GameScene extends Phaser.Scene {
                     if (this.bestReactionTimeInSeries !== Infinity) { // 有効な記録がある場合のみ
                         let playerName = localStorage.getItem('playerName');
                         if (!playerName) {
-                             playerName = prompt("ランキング登録名 (10文字以内):", "挑戦者");
+                             playerName = prompt("ランキング登録名 (10文字以内):", "トレハン侍");
                         } else {
                              playerName = prompt("ランキング登録名 (10文字以内):", playerName);
                         }
