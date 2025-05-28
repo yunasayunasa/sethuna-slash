@@ -13,41 +13,48 @@
     <div id="game-container"></div>
       <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
 
-    <!-- Firebase App (コア) SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
-    <!-- Firebase Realtime Database SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js"></script>
+     <!-- Firebase App (コア) SDK - Compat Version -->
+        <script src="https://www.gstatic.com/firebasejs/11.8.1/firebase-app-compat.js"></script>
+        <!-- Firebase Realtime Database SDK - Compat Version -->
+        <script src="https://www.gstatic.com/firebasejs/11.8.1/firebase-database-compat.js"></script>
+
 
     <script src="game.js"></script>
-    <script >
- // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyAVjg30oF5Wi7ubhNzujbHTh_TANAqePcQ",
-  authDomain: "sethunascore.firebaseapp.com",
-  databaseURL: "https://sethunascore-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "sethunascore",
-  storageBucket: "sethunascore.firebasestorage.app",
-  messagingSenderId: "279404460376",
-  appId: "1:279404460376:web:41a7bdd3ccabab675e4d2d",
-  measurementId: "G-7V5NKKTKBJ"
-};
+   <script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-analytics.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
 
-  // Initialize Firebase
-          let firebaseApp; // グローバルスコープで宣言
-          let database;    // グローバルスコープで宣言
-          let firebaseInitialized = false; // 初期化フラグ
+  // Your web app's Firebase configuration
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+  const firebaseConfig = {
+    apiKey: "AIzaSyAVjg30oF5Wi7ubhNzujbHTh_TANAqePcQ",
+    authDomain: "sethunascore.firebaseapp.com",
+    databaseURL: "https://sethunascore-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "sethunascore",
+    storageBucket: "sethunascore.firebasestorage.app",
+    messagingSenderId: "279404460376",
+    appId: "1:279404460376:web:41a7bdd3ccabab675e4d2d",
+    measurementId: "G-7V5NKKTKBJ"
+  };
+
+  let firebaseApp;
+          let database;
+          let firebaseInitialized = false;
 
           try {
+            console.log('[Firebase] Attempting to initialize Firebase with config (compat SDK):', firebaseConfig);
+            // compat SDK を使えば、v8 と同じように firebase グローバルオブジェクトが使える
             firebaseApp = firebase.initializeApp(firebaseConfig);
-            database = firebase.database(firebaseApp);
-            firebaseInitialized = true; // 初期化成功フラグ
-            console.log('[Firebase] Initialization successful.');
-            // (オプション) カスタムイベントを発行してシーンに通知
-            // window.dispatchEvent(new CustomEvent('firebaseReady'));
+            database = firebase.database(firebaseApp); // または firebase.database();
+            firebaseInitialized = true;
+            console.log('[Firebase] Initialization successful (compat SDK).');
           } catch (e) {
-            console.error('[Firebase] Initialization failed:', e);
-            firebaseInitialized = false; // 初期化失敗フラグ
+            console.error('[Firebase] Initialization failed (compat SDK):', e);
+            firebaseInitialized = false;
           }
-</script>
+        </script>
 </body>
 </html>

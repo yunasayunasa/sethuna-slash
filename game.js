@@ -484,8 +484,9 @@ class GameScene extends Phaser.Scene {
                     newScoreRef.set({
                         score: pReact, // 反応時間
                         difficulty: currentDifficultyKey,
-                        timestamp: firebase.database.ServerValue.TIMESTAMP // サーバー側のタイムスタンプ
-                        // name: "YOU" // 必要であればプレイヤー名も
+                       // ★★★ TIMESTAMP の書き方を v8 互換のまま試す ★★★
+                        // もしこれでエラーが出るなら、v9 の serverTimestamp() への変更が必要
+                        timestamp: firebase.database.ServerValue.TIMESTAMP
                     })
                     .then(() => console.log('[Firebase] Score saved successfully!'))
                     .catch((error) => console.error('[Firebase] Error saving score: ', error));
