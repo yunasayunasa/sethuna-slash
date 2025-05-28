@@ -39,8 +39,21 @@
   };
 
   // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
+          let firebaseApp; // グローバルスコープで宣言
+          let database;    // グローバルスコープで宣言
+          let firebaseInitialized = false; // 初期化フラグ
+
+          try {
+            firebaseApp = firebase.initializeApp(firebaseConfig);
+            database = firebase.database(firebaseApp);
+            firebaseInitialized = true; // 初期化成功フラグ
+            console.log('[Firebase] Initialization successful.');
+            // (オプション) カスタムイベントを発行してシーンに通知
+            // window.dispatchEvent(new CustomEvent('firebaseReady'));
+          } catch (e) {
+            console.error('[Firebase] Initialization failed:', e);
+            firebaseInitialized = false; // 初期化失敗フラグ
+          }
 </script>
 </body>
 </html>
