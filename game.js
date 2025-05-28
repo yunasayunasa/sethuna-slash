@@ -214,7 +214,7 @@ class TitleScene extends Phaser.Scene {
         checkFirebaseAndLoadRanking(); // チェック開始
         // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
     }
-    
+}
 
 
 // --- Game Scene ---
