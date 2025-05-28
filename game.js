@@ -380,9 +380,9 @@ class GameScene extends Phaser.Scene {
             if (this.winLastRound) { // 前のラウンドで勝った場合
                 if (currentOpponentNumber < MAX_OPPONENTS) { // まだ次の相手がいる
                     currentOpponentNumber++;
-                    this.scene.restart({ difficulty: currentDifficultyKey, opponentNum: currentOpponentNumber });
-                } else { // 3人抜き達成！
-                    console.log('[LOG] All opponents defeated! Current series best time:', this.bestReactionTimeInSeries);
+                  } else { // 3人抜き達成！
+                    console.log(`[LOG handlePlayerInput] All opponents defeated! OpponentNum: ${currentOpponentNumber}`);
+                    console.log(`[LOG handlePlayerInput] Attempting to save bestReactionTimeInSeries: ${this.bestReactionTimeInSeries === Infinity ? 'Infinity' : this.bestReactionTimeInSeries.toFixed(0)}`);
                     // ★★★ ここで名前入力と最速スコアの保存を行う ★★★
                     if (this.bestReactionTimeInSeries !== Infinity) { // 有効な記録がある場合のみ
                         let playerName = localStorage.getItem('playerName');
@@ -524,17 +524,20 @@ class GameScene extends Phaser.Scene {
             message = `遅い！\nあなたの負け\n(相手: ${cReact.toFixed(0)} ms)`;
             if(this.playerSprite) this.playerSprite.setTexture(ASSETS.PLAYER_LOSE);
             if(this.cpuSprite) this.cpuSprite.setTexture(`${cpuAssetKeyPrefix}_WIN`);
-       } else if (pReact < cReact) { // プレイヤー勝利
+         } else if (pReact < cReact) { // プレイヤー勝利
             message = `あなたの勝ち！\n\nあなた: ${pReact.toFixed(0)} ms\n相手: ${cReact.toFixed(0)} ms`;
             if(this.playerSprite) this.playerSprite.setTexture(ASSETS.PLAYER_WIN);
             if(this.cpuSprite) this.cpuSprite.setTexture(`${cpuAssetKeyPrefix}_LOSE`);
             this.winLastRound = true;
-            this.updateBestReaction(pReact); // ローカルの総合最速は毎回更新
+            this.updateBestReaction(pReact);
 
             // ★★★ 今回のシリーズ中の最速タイムを更新 ★★★
+            console.log(`[LOG performResultLogic] Opponent ${currentOpponentNumber} win. pReact: ${pReact.toFixed(0)}, current bestInSeries: ${this.bestReactionTimeInSeries === Infinity ? 'Infinity' : this.bestReactionTimeInSeries.toFixed(0)}`);
             if (pReact < this.bestReactionTimeInSeries) {
                 this.bestReactionTimeInSeries = pReact;
-                console.log(`[LOG] New best reaction time in series: ${this.bestReactionTimeInSeries.toFixed(0)} ms`);
+                console.log(`[LOG performResultLogic] New best reaction time in series: ${this.bestReactionTimeInSeries.toFixed(0)} ms`);
+            } else {
+                console.log(`[LOG performResultLogic] pReact was not better than bestInSeries. No update.`);
             }
             // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★
         } else if (pReact > cReact) {
