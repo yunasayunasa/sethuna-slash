@@ -377,16 +377,67 @@ class GameScene extends Phaser.Scene {
             this.playerReactTime = currentTime - this.signalTime; this.playerInputEnabled = false;
             if (this.cpuReactTime !== undefined) this.showResult();
         } else if (this.gameState === 'result') {
-            if (this.winLastRound) {
-                if (currentOpponentNumber < MAX_OPPONENTS) {
+            if (this.winLastRound) { // 前のラウンドで勝った場合
+                if (currentOpponentNumber < MAX_OPPONENTS) { // まだ次の相手がいる
                     currentOpponentNumber++;
                     this.scene.restart({ difficulty: currentDifficultyKey, opponentNum: currentOpponentNumber });
-                } else {
-                    if(this.resultText) this.resultText.setText(`${DIFFICULTIES[currentDifficultyKey].name} 制覇！\nタップしてタイトルへ`);
-                    this.winLastRound = false;
+                } else { // 3人抜き達成！
+                    console.log('[LOG] All opponents defeated! Current series best time:', this.bestReactionTimeInSeries);
+                    // ★★★ ここで名前入力と最速スコアの保存を行う ★★★
+                    if (this.bestReactionTimeInSeries !== Infinity) { // 有効な記録がある場合のみ
+                        let playerName = localStorage.getItem('playerName');
+                        if (!playerName) {
+                             playerName = prompt("ランキング登録名 (10文字以内):", "挑戦者");
+                        } else {
+                             playerName = prompt("ランキング登録名 (10文字以内):", playerName);
+                        }
+
+                        if (playerName && playerName.trim() !== "") {
+                            playerName = playerName.trim().substring(0, 10);
+                            localStorage.setItem('playerName', playerName);
+
+                            if (typeof window.firebaseDatabase !== 'undefined' && typeof window.firebaseInitialized !== 'undefined' && window.firebaseInitialized) {
+                                try {
+                                    const databaseToUse = window.firebaseDatabase;
+                                    const scoresRef = databaseToUse.ref('scores');
+                                    const newScoreRef = scoresRef.push();
+                                    newScoreRef.set({
+                                        name: playerName,
+                                        score: this.bestReactionTimeInSeries, // ★シリーズ中の最速タイムを保存★
+                                        difficulty: currentDifficultyKey,
+                                        timestamp: firebase.database.ServerValue.TIMESTAMP
+                                    })
+                                    .then(() => {
+                                        console.log('[Firebase] Best series score saved successfully!');
+                                        if(this.resultText) this.resultText.setText(this.resultText.text + '\nランキング登録完了！\nタップしてタイトルへ');
+                                    })
+                                    .catch((error) => {
+                                        console.error('[Firebase] Error saving best series score: ', error);
+                                        if(this.resultText) this.resultText.setText(this.resultText.text + '\nランキング登録失敗…\nタップしてタイトルへ');
+                                    });
+                                } catch (e) {
+                                    console.error('[Firebase] Exception while trying to save best series score: ', e);
+                                    if(this.resultText) this.resultText.setText(this.resultText.text + '\nランキング登録エラー…\nタップしてタイトルへ');
+                                }
+                            } else {
+                                console.warn('[Firebase] Database not initialized, score not saved to online ranking.');
+                                if(this.resultText) this.resultText.setText(this.resultText.text + '\n(オンラインランキングオフライン)\nタップしてタイトルへ');
+                            }
+                        } else {
+                            console.log("Player name not provided for series best, score not saved to online ranking.");
+                            if(this.resultText) this.resultText.setText(this.resultText.text + '\n(名前未入力のため登録スキップ)\nタップしてタイトルへ');
+                        }
+                    } else {
+                         if(this.resultText) this.resultText.setText(this.resultText.text + '\n(有効な記録なし)\nタップしてタイトルへ');
+                    }
+                    this.winLastRound = false; // 次のタップはタイトルへ戻るように
+                    // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
                 }
-            } else this.scene.start('TitleScene');
+            } else { // 敗北または3人抜き達成後の(名前入力後の)タップ
+                this.scene.start('TitleScene');
+            }
         }
+    
     }
 
     handleCpuInput() {
