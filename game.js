@@ -41,6 +41,7 @@ let currentBgm = null;
 class TitleScene extends Phaser.Scene {
     constructor() {
         super({ key: 'TitleScene' });
+        
     }
 
     preload() {
@@ -226,6 +227,7 @@ class GameScene extends Phaser.Scene {
         this.gameState = 'waiting'; this.signalTime = undefined; this.playerReactTime = undefined;
         this.cpuReactTime = undefined; this.playerInputEnabled = false; this.cpuTimer = null;
         this.signalTimer = null; this.playerIsLeft = false; this.winLastRound = false;
+         this.bestReactionTimeInSeries = Infinity; // ★現在の3連戦中の最速タイムを保持する変数★
     }
 
     init(data) {
@@ -243,6 +245,7 @@ class GameScene extends Phaser.Scene {
             if (cpuMinReact >= cpuMaxReact - 10) cpuMinReact = cpuMaxReact - 20;
         }
         this.gameState = 'waiting';
+         this.bestReactionTimeInSeries = Infinity; // ★各難易度挑戦開始時にリセット★
         console.log(`[LOG] GameScene init: Opponent ${currentOpponentNumber}, CPU Strength (from ${currentDifficultyKey}): ${cpuMinReact}-${cpuMaxReact}ms. gameState: ${this.gameState}`);
     }
 
@@ -450,17 +453,16 @@ class GameScene extends Phaser.Scene {
         console.log('[LOG] showResult: Finished scheduling delayed calls'); // ★ログ追加★
     }
 
+       // performResultLogic メソッドの修正
     performResultLogic() {
-        console.log('[LOG] performResultLogic: Started'); // ★ログ追加★
-        if (this.gameState === 'result' && this.resultText && this.resultText.text !== '' && this.resultText.text.includes('タップして')) { return; }  console.log('[LOG] performResultLogic: Stopping BGM'); // ★ログ追加★
+        if (this.gameState === 'result' && this.resultText && this.resultText.text !== '' && this.resultText.text.includes('タップして')) { return; }
         this.stopGameBGM();
-        console.log('[LOG] performResultLogic: Setting gameState to result'); // ★ログ追加★
-        this.stopGameBGM(); this.setGameState('result');
+        this.setGameState('result'); // gameState を 'result' にするのはここが最初が良い
         let message = '';
         const pReact = this.playerReactTime === undefined ? Infinity : this.playerReactTime;
         const cReact = this.cpuReactTime === undefined ? Infinity : this.cpuReactTime;
         this.winLastRound = false;
-        const cpuAssetKeyPrefix = `CPU${currentOpponentNumber}`;     console.log(`[LOG] performResultLogic: pReact=${pReact}, cReact=${cReact}`); // ★ログ追加★
+        const cpuAssetKeyPrefix = `CPU${currentOpponentNumber}`;
 
 
         if (pReact === -1) {
@@ -471,48 +473,19 @@ class GameScene extends Phaser.Scene {
             message = `遅い！\nあなたの負け\n(相手: ${cReact.toFixed(0)} ms)`;
             if(this.playerSprite) this.playerSprite.setTexture(ASSETS.PLAYER_LOSE);
             if(this.cpuSprite) this.cpuSprite.setTexture(`${cpuAssetKeyPrefix}_WIN`);
-         } else if (pReact < cReact) { // プレイヤー勝利
+       } else if (pReact < cReact) { // プレイヤー勝利
             message = `あなたの勝ち！\n\nあなた: ${pReact.toFixed(0)} ms\n相手: ${cReact.toFixed(0)} ms`;
             if(this.playerSprite) this.playerSprite.setTexture(ASSETS.PLAYER_WIN);
             if(this.cpuSprite) this.cpuSprite.setTexture(`${cpuAssetKeyPrefix}_LOSE`);
             this.winLastRound = true;
-            this.updateBestReaction(pReact); // ローカルの最速も更新
+            this.updateBestReaction(pReact); // ローカルの総合最速は毎回更新
 
-           // ★★★ 名前入力とFirebaseへの保存 ★★★
-            let playerName = localStorage.getItem('playerName'); // 前回入力した名前を記憶しておく (任意)
-            if (!playerName) { // まだ名前が保存されていないか、空の場合
-                 playerName = prompt("ランキング登録名 (10文字以内):", "挑戦者");
-            } else {
-                 playerName = prompt("ランキング登録名 (10文字以内):", playerName); // 前回のをデフォルトに
+            // ★★★ 今回のシリーズ中の最速タイムを更新 ★★★
+            if (pReact < this.bestReactionTimeInSeries) {
+                this.bestReactionTimeInSeries = pReact;
+                console.log(`[LOG] New best reaction time in series: ${this.bestReactionTimeInSeries.toFixed(0)} ms`);
             }
-
-
-            if (playerName && playerName.trim() !== "") { // 名前が入力されたら
-                playerName = playerName.trim().substring(0, 10); // 空白除去と文字数制限
-                localStorage.setItem('playerName', playerName); // 次回のために保存
-
-                if (typeof window.firebaseDatabase !== 'undefined' && typeof window.firebaseInitialized !== 'undefined' && window.firebaseInitialized) {
-                    try {
-                        const databaseToUse = window.firebaseDatabase;
-                        const scoresRef = databaseToUse.ref('scores');
-                        const newScoreRef = scoresRef.push();
-                        newScoreRef.set({
-                            name: playerName, // ★名前を追加★
-                            score: pReact,
-                            difficulty: currentDifficultyKey,
-                            timestamp: firebase.database.ServerValue.TIMESTAMP
-                        })
-                    .then(() => console.log('[Firebase] Score saved successfully!'))
-                    .catch((error) => console.error('[Firebase] Error saving score: ', error));
-                } catch (e) {
-                    console.error('[Firebase] Exception while trying to save score: ', e);
-                }
-            } else {
-                console.warn('[Firebase GameScene] Database not initialized or init failed, score not saved. Details below:');
-                console.warn(`[Firebase GameScene]   - typeof window.firebaseDatabase: ${typeof window.firebaseDatabase}`);
-                console.warn(`[Firebase GameScene]   - window.firebaseInitialized: ${typeof window.firebaseInitialized !== 'undefined' ? window.firebaseInitialized : 'undefined (flag itself)'}`);
-            }
-            // ★★★★★★★★★★★★★★★★★★★
+            // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★
         } else if (pReact > cReact) {
             message = `あなたの負け\n\nあなた: ${pReact.toFixed(0)} ms\n相手: ${cReact.toFixed(0)} ms`;
             if(this.playerSprite) this.playerSprite.setTexture(ASSETS.PLAYER_LOSE);
@@ -526,13 +499,19 @@ class GameScene extends Phaser.Scene {
             if(this.playerSprite) this.playerSprite.setTexture(ASSETS.PLAYER_IDLE);
             if(this.cpuSprite) this.cpuSprite.setTexture(`${cpuAssetKeyPrefix}_IDLE`);
         }
-        if (this.winLastRound) {
-            if (currentOpponentNumber < MAX_OPPONENTS) message += `\n\nタップして次の相手へ`;
-            else { message += `\n\n${DIFFICULTIES[currentDifficultyKey].name} 制覇！\nタップしてタイトルへ`; this.updateClearCount(currentDifficultyKey); }
-        } else message += `\n\nタップしてタイトルへ`;
+         if (this.winLastRound) {
+            if (currentOpponentNumber < MAX_OPPONENTS) {
+                message += `\n\nタップして次の相手へ`;
+            } else { // 3人抜き達成
+                message += `\n\n${DIFFICULTIES[currentDifficultyKey].name} 制覇！`; // 名前入力指示は handlePlayerInput へ
+                this.updateClearCount(currentDifficultyKey);
+                // ★★★ 名前入力とスコア保存はここでは行わない (handlePlayerInput へ移動) ★★★
+            }
+        } else {
+             message += `\n\nタップしてタイトルへ`;
+        }
         if(this.resultText) this.resultText.setText(message);
     }
-}
 
     updateBestReaction(reactionTime) {
         if (reactionTime < 0 || reactionTime >= 9999) return;
