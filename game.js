@@ -532,6 +532,7 @@ class GameScene extends Phaser.Scene {
         } else message += `\n\nタップしてタイトルへ`;
         if(this.resultText) this.resultText.setText(message);
     }
+}
 
     updateBestReaction(reactionTime) {
         if (reactionTime < 0 || reactionTime >= 9999) return;
