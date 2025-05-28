@@ -146,10 +146,12 @@ class TitleScene extends Phaser.Scene {
         }).setOrigin(0.5).setStroke('#000000', 3);
 
         // Firebaseが初期化されるまで少し待つか、フラグを確認する
-        const checkFirebaseAndLoadRanking = () => { // ★★★ 関数名を修正 ★★★
-            if (typeof firebaseInitialized !== 'undefined' && firebaseInitialized && typeof database !== 'undefined') {
+     // TitleScene の createTextObjects メソッド内 (ランキング表示部分)
+        const checkFirebaseAndLoadRanking = () => {
+            if (typeof window.firebaseInitialized !== 'undefined' && window.firebaseInitialized && typeof window.firebaseDatabase !== 'undefined') { // ★ window. を追加 ★
                 console.log('[TitleScene] Firebase is initialized, loading ranking...');
-                const scoresRef = database.ref('scores');
+                const databaseToUse = window.firebaseDatabase; // ★ window. を追加 ★
+                const scoresRef = databaseToUse.ref('scores'); // ★ databaseToUse を使用 ★
                 scoresRef.orderByChild('score').limitToFirst(5).once('value', (snapshot) => {
                     if (snapshot.exists()) {
                         let y = rankingYStart;
@@ -191,7 +193,7 @@ class TitleScene extends Phaser.Scene {
                     const errorText = this.add.text(GAME_WIDTH * 0.75, rankingYStart, '(ランキング取得エラー)', { fontSize: '16px', color: '#FF8888' }).setOrigin(0.5, 0).setStroke('#000000', 2);
                     this.rankingTexts.push(errorText);
                 });
-            } else if (typeof firebaseInitialized !== 'undefined' && !firebaseInitialized) {
+            } else if (typeof window.firebaseInitialized !== 'undefined' && !window.firebaseInitialized) { 
                 console.warn('[TitleScene] Firebase initialization failed, ranking offline.');
                  // 古いランキング表示をクリア
                 if (this.rankingTexts && this.rankingTexts.length > 0) {
@@ -205,7 +207,7 @@ class TitleScene extends Phaser.Scene {
                 console.log('[TitleScene] Firebase not yet initialized, retrying to load ranking soon...');
                 // まだ初期化されていない場合は少し待って再試行 (簡易的なポーリング)
                 // ポーリング中に重複してテキストが描画されないように注意（現状は大丈夫そう）
-                this.time.delayedCall(500, checkFirebaseAndLoadRanking, [], this); // ★★★ 関数名を修正 ★★★
+                 this.time.delayedCall(500, checkFirebaseAndLoadRanking, [], this);
             }
         };
 
@@ -476,21 +478,21 @@ class GameScene extends Phaser.Scene {
             this.winLastRound = true;
             this.updateBestReaction(pReact); // ローカルの最速も更新
 
-            // ★★★ Firebaseにスコアを保存 ★★★
-           // ★★★ Firebaseにスコアを保存 ★★★
-            console.log('[Firebase GameScene] Checking conditions to save score...'); // ★追加ログ★
-            console.log(`[Firebase GameScene] typeof database: ${typeof database}`); // ★追加ログ★
-            console.log(`[Firebase GameScene] firebaseInitialized: ${typeof firebaseInitialized !== 'undefined' ? firebaseInitialized : 'undefined (flag itself)'}`); // ★追加ログ★
+             // ★★★ Firebaseにスコアを保存 (window経由でアクセス) ★★★
+            console.log('[Firebase GameScene] Checking conditions to save score...');
+            console.log(`[Firebase GameScene] typeof window.firebaseDatabase: ${typeof window.firebaseDatabase}`);
+            console.log(`[Firebase GameScene] window.firebaseInitialized: ${typeof window.firebaseInitialized !== 'undefined' ? window.firebaseInitialized : 'undefined (flag itself)'}`);
 
-            if (typeof database !== 'undefined' && typeof firebaseInitialized !== 'undefined' && firebaseInitialized) {
-                console.log('[Firebase GameScene] Conditions met. Attempting to save score.'); // ★追加ログ★
+            if (typeof window.firebaseDatabase !== 'undefined' && typeof window.firebaseInitialized !== 'undefined' && window.firebaseInitialized) {
+                console.log('[Firebase GameScene] Conditions met. Attempting to save score.');
                 try {
-                    const scoresRef = database.ref('scores');
+                    const databaseToUse = window.firebaseDatabase; // ローカル変数に入れるとタイプ量が減る
+                    const scoresRef = databaseToUse.ref('scores'); // ref は database インスタンスのメソッド
                     const newScoreRef = scoresRef.push();
                     newScoreRef.set({
                         score: pReact,
                         difficulty: currentDifficultyKey,
-                        timestamp: firebase.database.ServerValue.TIMESTAMP
+                        timestamp: firebase.database.ServerValue.TIMESTAMP // これは firebase グローバルオブジェクトのプロパティなので window 不要 (互換SDKの場合)
                     })
                     .then(() => console.log('[Firebase] Score saved successfully!'))
                     .catch((error) => console.error('[Firebase] Error saving score: ', error));
@@ -498,9 +500,9 @@ class GameScene extends Phaser.Scene {
                     console.error('[Firebase] Exception while trying to save score: ', e);
                 }
             } else {
-                console.warn('[Firebase GameScene] Database not initialized or init failed, score not saved. Details below:'); // ★ログ変更★
-                console.warn(`[Firebase GameScene]   - typeof database: ${typeof database}`); // ★詳細ログ★
-                console.warn(`[Firebase GameScene]   - firebaseInitialized: ${typeof firebaseInitialized !== 'undefined' ? firebaseInitialized : 'undefined (flag itself)'}`); // ★詳細ログ★
+                console.warn('[Firebase GameScene] Database not initialized or init failed, score not saved. Details below:');
+                console.warn(`[Firebase GameScene]   - typeof window.firebaseDatabase: ${typeof window.firebaseDatabase}`);
+                console.warn(`[Firebase GameScene]   - window.firebaseInitialized: ${typeof window.firebaseInitialized !== 'undefined' ? window.firebaseInitialized : 'undefined (flag itself)'}`);
             }
             // ★★★★★★★★★★★★★★★★★★★
         } else if (pReact > cReact) {
