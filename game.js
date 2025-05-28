@@ -155,57 +155,62 @@ class TitleScene extends Phaser.Scene {
             this.rankingTexts = [];
         }
 
-       const checkFirebaseAndLoadRanking = () => {
+              const checkFirebaseAndLoadRanking = () => {
             if (typeof window.firebaseInitialized !== 'undefined' && window.firebaseInitialized && typeof window.firebaseDatabase !== 'undefined') {
                 console.log('[TitleScene] Firebase is initialized, loading ranking...');
                 const databaseToUse = window.firebaseDatabase;
                 const scoresRef = databaseToUse.ref('scores');
                 scoresRef.orderByChild('score').limitToFirst(5).once('value', (snapshot) => {
-                    // 新しいデータを表示する前に、再度既存のランキングテキストをクリア
                     if (this.rankingTexts && this.rankingTexts.length > 0) {
                         this.rankingTexts.forEach(text => { if(text && text.destroy) text.destroy(); });
                     }
-                    this.rankingTexts = []; // 配列を空にする
+                    this.rankingTexts = [];
 
                     if (snapshot.exists()) {
                         let y = rankingYStart;
                         let rank = 1;
                         snapshot.forEach((childSnapshot) => {
-                            const scoreData = childSnapshot.val();
-                            if (scoreData && typeof scoreData.score === 'number') {
-                                const displayName = scoreData.name || "名無し"; // 名前がなければ "名無し"
-                                const rankText = this.add.text(GAME_WIDTH * 0.75, y,
-                                    `${rank}. ${displayName} - ${scoreData.score.toFixed(0)} ms (${scoreData.difficulty || 'N/A'})`, { // ★名前を表示★
-                                    fontSize: '16px', color: '#FFFFFF'
-                                }).setOrigin(0.5, 0).setStroke('#000000', 2);
-                                this.rankingTexts.push(rankText);
-                                y += 20;
-                                rank++;
+                            // ★★★ try をここに追加 ★★★
+                            try {
+                                const scoreData = childSnapshot.val();
+                                if (scoreData && typeof scoreData.score === 'number') {
+                                    const displayName = scoreData.name || "名無し";
+                                    const rankText = this.add.text(GAME_WIDTH * 0.75, y,
+                                        `${rank}. ${displayName} - ${scoreData.score.toFixed(0)} ms (${scoreData.difficulty || 'N/A'})`, {
+                                        fontSize: '16px', color: '#FFFFFF'
+                                    }).setOrigin(0.5, 0).setStroke('#000000', 2);
+                                    this.rankingTexts.push(rankText);
+                                    y += 20;
+                                    rank++;
                                 } else {
-                                    console.warn('[TitleScene] Invalid score data found:', scoreData);
+                                    console.warn('[TitleScene] Invalid score data found in forEach:', scoreData);
                                 }
+                            // ★★★ catch はこの try に対応 ★★★
                             } catch (e) {
-                                console.error('[TitleScene] Error creating ranking text entry:', e, 'Data:', childSnapshot.val());
+                                console.error('[TitleScene] Error processing one ranking entry:', e, 'Data:', childSnapshot.val());
                             }
-                        });
+                        }); // snapshot.forEach の閉じ括弧
                     } else {
                         const noDataText = this.add.text(GAME_WIDTH * 0.75, rankingYStart, '(まだ記録がありません)', { fontSize: '16px', color: '#AAAAAA' }).setOrigin(0.5, 0).setStroke('#000000', 2);
                         this.rankingTexts.push(noDataText);
                     }
-                }, (errorObject) => { /* ... (エラー処理) ... */ });
+                }, (errorObject) => {
+                    console.error('[Firebase] Ranking read failed:', errorObject.name, errorObject.message); // エラーオブジェクトの内容も表示
+                    if (this.rankingTexts && this.rankingTexts.length > 0) { this.rankingTexts.forEach(text => { if(text && text.destroy) text.destroy(); }); }
+                    this.rankingTexts = [];
+                    const errorText = this.add.text(GAME_WIDTH * 0.75, rankingYStart, '(ランキング取得エラー)', { fontSize: '16px', color: '#FF8888' }).setOrigin(0.5, 0).setStroke('#000000', 2);
+                    this.rankingTexts.push(errorText);
+                });
             } else if (typeof window.firebaseInitialized !== 'undefined' && !window.firebaseInitialized) {
-                // ... (初期化失敗時の表示、既存のrankingTextsクリアもここで行う) ...
                 if (this.rankingTexts && this.rankingTexts.length > 0) { this.rankingTexts.forEach(text => { if(text && text.destroy) text.destroy(); }); }
                 this.rankingTexts = [];
-                const initErrorText = this.add.text(GAME_WIDTH * 0.75, rankingYStart, '(ランキング機能エラー)', { /* ... */ });
+                const initErrorText = this.add.text(GAME_WIDTH * 0.75, rankingYStart, '(ランキング機能エラー)', { fontSize: '16px', color: '#FF8888' }).setOrigin(0.5, 0).setStroke('#000000', 2);
                 this.rankingTexts.push(initErrorText);
             }
             else {
-                // ... (ポーリング) ...
                 this.time.delayedCall(500, checkFirebaseAndLoadRanking, [], this);
             }
         };
-
         checkFirebaseAndLoadRanking(); // チェック開始
         // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
     }
