@@ -140,74 +140,69 @@ class TitleScene extends Phaser.Scene {
         }
         console.log('[LOG] TitleScene createTextObjects: Finished');
         // ★★★ Firebaseからランキングを読み込んで表示 ★★★
-        const rankingYStart = GAME_HEIGHT * 0.5; // 表示開始位置 (調整してください)
-        const rankingTitle = this.add.text(GAME_WIDTH * 0.75, rankingYStart - 30, '--- オンラインランキング ---', {
+        const rankingYStart = GAME_HEIGHT * 0.6; // 表示開始位置 (調整してください)
+        const rankingTitle = this.add.text(GAME_WIDTH * 0.75, rankingYStart - 30, '--- 団内ランキング ---', {
             fontSize: '20px', color: '#FFD700' // 金色っぽく
-        }).setOrigin(0.5).setStroke('#000000', 3);
+        }).setOrigin(0.3).setStroke('#000000', 3);
 
         // Firebaseが初期化されるまで少し待つか、フラグを確認する
      // TitleScene の createTextObjects メソッド内 (ランキング表示部分)
-        const checkFirebaseAndLoadRanking = () => {
-            if (typeof window.firebaseInitialized !== 'undefined' && window.firebaseInitialized && typeof window.firebaseDatabase !== 'undefined') { // ★ window. を追加 ★
+     // rankingTexts 配列をここで確実に初期化 (または constructor で)
+        if (!this.rankingTexts) { // まだ初期化されていなければ
+            this.rankingTexts = [];
+        } else { // 既に存在する場合は古いものをクリア
+            this.rankingTexts.forEach(text => { if(text && text.destroy) text.destroy(); }); // nullチェックとdestroy存在チェック
+            this.rankingTexts = [];
+        }
+
+       const checkFirebaseAndLoadRanking = () => {
+            if (typeof window.firebaseInitialized !== 'undefined' && window.firebaseInitialized && typeof window.firebaseDatabase !== 'undefined') {
                 console.log('[TitleScene] Firebase is initialized, loading ranking...');
-                const databaseToUse = window.firebaseDatabase; // ★ window. を追加 ★
-                const scoresRef = databaseToUse.ref('scores'); // ★ databaseToUse を使用 ★
+                const databaseToUse = window.firebaseDatabase;
+                const scoresRef = databaseToUse.ref('scores');
                 scoresRef.orderByChild('score').limitToFirst(5).once('value', (snapshot) => {
+                    // 新しいデータを表示する前に、再度既存のランキングテキストをクリア
+                    if (this.rankingTexts && this.rankingTexts.length > 0) {
+                        this.rankingTexts.forEach(text => { if(text && text.destroy) text.destroy(); });
+                    }
+                    this.rankingTexts = []; // 配列を空にする
+
                     if (snapshot.exists()) {
                         let y = rankingYStart;
                         let rank = 1;
-                        // 古いランキング表示をクリアする (もしあれば)
-                        if (this.rankingTexts && this.rankingTexts.length > 0) {
-                            this.rankingTexts.forEach(text => text.destroy());
-                            this.rankingTexts = [];
-                        } else {
-                            this.rankingTexts = []; // 初期化
-                        }
-
-                        snapshot.forEach((childSnapshot) => {
-                            const scoreData = childSnapshot.val();
-                            const rankText = this.add.text(GAME_WIDTH * 0.75, y,
-                                `${rank}. ${scoreData.score.toFixed(0)} ms (${scoreData.difficulty || 'unknown'})`, {
-                                fontSize: '16px', color: '#FFFFFF'
-                            }).setOrigin(0.5, 0).setStroke('#000000', 2);
-                            this.rankingTexts.push(rankText); // 表示したテキストを保持
-                            y += 20;
-                            rank++;
+                        snapshot.forEach((childSnapshot) => { // ★このコールバック内が game.js:184 付近の可能性★
+                            try { // ★個々のテキスト生成をtry...catchで囲んでみる★
+                                const scoreData = childSnapshot.val();
+                                if (scoreData && typeof scoreData.score === 'number') { // scoreデータが存在し、数値であることを確認
+                                    const rankText = this.add.text(GAME_WIDTH * 0.75, y,
+                                        `${rank}. ${scoreData.score.toFixed(0)} ms (${scoreData.difficulty || 'N/A'})`, { // difficultyがundefinedの場合も考慮
+                                        fontSize: '16px', color: '#FFFFFF'
+                                    }).setOrigin(0.5, 0).setStroke('#000000', 2);
+                                    this.rankingTexts.push(rankText);
+                                    y += 20;
+                                    rank++;
+                                } else {
+                                    console.warn('[TitleScene] Invalid score data found:', scoreData);
+                                }
+                            } catch (e) {
+                                console.error('[TitleScene] Error creating ranking text entry:', e, 'Data:', childSnapshot.val());
+                            }
                         });
                     } else {
-                        // 古いランキング表示をクリア
-                        if (this.rankingTexts && this.rankingTexts.length > 0) {
-                            this.rankingTexts.forEach(text => text.destroy());
-                            this.rankingTexts = [];
-                        }
                         const noDataText = this.add.text(GAME_WIDTH * 0.75, rankingYStart, '(まだ記録がありません)', { fontSize: '16px', color: '#AAAAAA' }).setOrigin(0.5, 0).setStroke('#000000', 2);
                         this.rankingTexts.push(noDataText);
                     }
-                }, (errorObject) => {
-                    console.error('[Firebase] The read failed: ' + errorObject.name);
-                    // 古いランキング表示をクリア
-                    if (this.rankingTexts && this.rankingTexts.length > 0) {
-                        this.rankingTexts.forEach(text => text.destroy());
-                        this.rankingTexts = [];
-                    }
-                    const errorText = this.add.text(GAME_WIDTH * 0.75, rankingYStart, '(ランキング取得エラー)', { fontSize: '16px', color: '#FF8888' }).setOrigin(0.5, 0).setStroke('#000000', 2);
-                    this.rankingTexts.push(errorText);
-                });
-            } else if (typeof window.firebaseInitialized !== 'undefined' && !window.firebaseInitialized) { 
-                console.warn('[TitleScene] Firebase initialization failed, ranking offline.');
-                 // 古いランキング表示をクリア
-                if (this.rankingTexts && this.rankingTexts.length > 0) {
-                    this.rankingTexts.forEach(text => text.destroy());
-                    this.rankingTexts = [];
-                }
-                const initErrorText = this.add.text(GAME_WIDTH * 0.75, rankingYStart, '(ランキング機能エラー)', { fontSize: '16px', color: '#FF8888' }).setOrigin(0.5, 0).setStroke('#000000', 2);
+                }, (errorObject) => { /* ... (エラー処理) ... */ });
+            } else if (typeof window.firebaseInitialized !== 'undefined' && !window.firebaseInitialized) {
+                // ... (初期化失敗時の表示、既存のrankingTextsクリアもここで行う) ...
+                if (this.rankingTexts && this.rankingTexts.length > 0) { this.rankingTexts.forEach(text => { if(text && text.destroy) text.destroy(); }); }
+                this.rankingTexts = [];
+                const initErrorText = this.add.text(GAME_WIDTH * 0.75, rankingYStart, '(ランキング機能エラー)', { /* ... */ });
                 this.rankingTexts.push(initErrorText);
             }
             else {
-                console.log('[TitleScene] Firebase not yet initialized, retrying to load ranking soon...');
-                // まだ初期化されていない場合は少し待って再試行 (簡易的なポーリング)
-                // ポーリング中に重複してテキストが描画されないように注意（現状は大丈夫そう）
-                 this.time.delayedCall(500, checkFirebaseAndLoadRanking, [], this);
+                // ... (ポーリング) ...
+                this.time.delayedCall(500, checkFirebaseAndLoadRanking, [], this);
             }
         };
 
